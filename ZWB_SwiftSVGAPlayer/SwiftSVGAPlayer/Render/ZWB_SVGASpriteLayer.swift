@@ -4,34 +4,36 @@ import UIKit
 import QuartzCore
 
 /// 对应一个 SVGASprite 的渲染容器
+/// frame 始终覆盖整个画布（canvasSize），不随 bitmapLayer 变化
+/// bitmapLayer 在其内部用绝对坐标定位
 final class SVGASpriteLayer: CALayer {
 
-    // sprite 用 Optional，兼容 CALayer 的 init(layer:) / init?(coder:)
     private(set) var sprite: SVGASprite?
     private(set) var bitmapLayer: SVGABitmapLayer?
     private(set) var vectorLayer: SVGAVectorLayer?
 
-    // MARK: - 主初始化
+    // MARK: - Init
 
-    init(sprite: SVGASprite, image: UIImage?) {
+    init(sprite: SVGASprite, image: UIImage?, canvasSize: CGSize) {
         self.sprite = sprite
         super.init()
         isGeometryFlipped = false
+        masksToBounds     = false
+        // 覆盖整个画布，子层用绝对坐标定位
+        frame = CGRect(origin: .zero, size: canvasSize)
         setupSublayers(sprite: sprite, image: image)
     }
 
     override init(layer: Any) {
         super.init(layer: layer)
-        if let other = layer as? SVGASpriteLayer {
-            self.sprite      = other.sprite
-            self.bitmapLayer = other.bitmapLayer
-            self.vectorLayer = other.vectorLayer
+        if let o = layer as? SVGASpriteLayer {
+            sprite      = o.sprite
+            bitmapLayer = o.bitmapLayer
+            vectorLayer = o.vectorLayer
         }
     }
 
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
-    }
+    required init?(coder: NSCoder) { super.init(coder: coder) }
 
     // MARK: - Setup
 
@@ -42,31 +44,34 @@ final class SVGASpriteLayer: CALayer {
             addSublayer(bl)
             bitmapLayer = bl
         }
-
-        let hasShapes = sprite.frames.contains { !$0.shapes.isEmpty }
-        if hasShapes {
+        if sprite.frames.contains(where: { !$0.shapes.isEmpty }) {
             let vl = SVGAVectorLayer()
             addSublayer(vl)
             vectorLayer = vl
         }
     }
 
-    // MARK: - Step to frame
+    // MARK: - Step
 
     func step(to frameIndex: Int, canvasSize: CGSize, dynamicItems: SVGADynamicItems) {
         guard let sprite = sprite else { return }
         guard frameIndex < sprite.frames.count else { isHidden = true; return }
 
-        let frame = sprite.frames[frameIndex]
-        let key   = sprite.imageKey ?? ""
+        let svgaFrame = sprite.frames[frameIndex]
+        let key       = sprite.imageKey ?? ""
 
-        if case .hidden = dynamicItems[key] {
-            isHidden = true
-            return
-        }
+        // 动态隐藏
+        if case .hidden = dynamicItems[key] { isHidden = true; return }
         isHidden = false
 
+        // 确保 spriteLayer 始终覆盖整个画布
+        if self.frame.size != canvasSize {
+            self.frame = CGRect(origin: .zero, size: canvasSize)
+        }
+
+        // Bitmap layer
         if let bl = bitmapLayer {
+            // 应用动态内容
             if let item = dynamicItems[key] {
                 switch item {
                 case .image(let img):  bl.setDynamicImage(img)
@@ -75,15 +80,15 @@ final class SVGASpriteLayer: CALayer {
                 case .drawing, .imageURL: break
                 }
             } else {
+                bl.isDynamicHidden = false
                 bl.setDynamicImage(nil)
             }
-            bl.apply(frame: frame, canvasSize: canvasSize)
-            self.frame = bl.frame
-            bl.frame   = CGRect(origin: .zero, size: bl.frame.size)
+            bl.apply(frame: svgaFrame, canvasSize: canvasSize)
         }
 
-        if let vl = vectorLayer, !frame.shapes.isEmpty {
-            vl.apply(shapes: frame.shapes, frame: frame, canvasSize: canvasSize)
+        // Vector layer
+        if let vl = vectorLayer, !svgaFrame.shapes.isEmpty {
+            vl.apply(shapes: svgaFrame.shapes, frame: svgaFrame, canvasSize: canvasSize)
         }
     }
 

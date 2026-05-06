@@ -1,38 +1,31 @@
-// Sources/SwiftSVGAPlayer/Render/ZWB_SVGABitmapLayer.swift
+// ZWB_SwiftSVGAPlayer/SwiftSVGAPlayer/Render/ZWB_SVGABitmapLayer.swift
 
 import UIKit
 import QuartzCore
 
 /// 渲染单个 bitmap sprite 的 CALayer
+/// 坐标系：frame 由父层（SVGASpriteLayer，覆盖整个画布）决定
+/// transform 从左上角原点（anchorPoint = 0,0）应用，与 SVGA 规范一致
 final class SVGABitmapLayer: CALayer {
 
-    // MARK: - Properties
-
-    /// 当前显示的图片（动态替换优先）
     private var dynamicImage: UIImage?
-    /// 原始 SVGA 图片
     private var originalImage: UIImage?
-    /// 动态文字层
     private var textLayer: CATextLayer?
-    /// 是否隐藏（动态控制）
     var isDynamicHidden: Bool = false
 
     // MARK: - Init
 
     override init() {
         super.init()
+        // anchorPoint = (0,0)：transform 从左上角原点应用，与 SVGA 坐标系一致
+        anchorPoint = CGPoint(x: 0, y: 0)
         isGeometryFlipped = false
         contentsGravity = .resize
-        masksToBounds = true
+        masksToBounds = false
     }
 
-    override init(layer: Any) {
-        super.init(layer: layer)
-    }
-
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
-    }
+    override init(layer: Any) { super.init(layer: layer) }
+    required init?(coder: NSCoder) { super.init(coder: coder) }
 
     // MARK: - Configure
 
@@ -45,37 +38,32 @@ final class SVGABitmapLayer: CALayer {
 
     // MARK: - Apply Frame
 
+    /// canvasSize 仅供将来扩展使用，当前 layout 已是绝对坐标
     func apply(frame: SVGAFrame, canvasSize: CGSize) {
-        guard !isDynamicHidden else {
-            isHidden = true
-            return
-        }
-        isHidden = frame.alpha <= 0.001
+        guard !isDynamicHidden else { isHidden = true; return }
+
+        isHidden  = frame.alpha <= 0.001
+        opacity   = Float(frame.alpha)
 
         let layout = frame.layout
-        let frameRect = CGRect(x: CGFloat(layout.x),
-                               y: CGFloat(layout.y),
-                               width: CGFloat(layout.width),
-                               height: CGFloat(layout.height))
 
         CATransaction.begin()
         CATransaction.setDisableActions(true)
 
-        self.frame = frameRect
-        self.opacity = Float(frame.alpha)
+        // anchorPoint = (0,0)，所以 position = layout 左上角
+        bounds   = CGRect(x: 0, y: 0, width: layout.width, height: layout.height)
+        position = CGPoint(x: layout.x, y: layout.y)
 
-        // 应用变换（相对于 layer 中心）
-        if frame.transform != .identity {
-            self.transform = CATransform3DMakeAffineTransform(frame.transform)
-        } else {
-            self.transform = CATransform3DIdentity
-        }
+        // 应用 SVGA transform（已是相对左上角的矩阵）
+        self.transform = frame.transform != .identity
+            ? CATransform3DMakeAffineTransform(frame.transform)
+            : CATransform3DIdentity
 
         // 裁剪路径
         if let clipPath = frame.clipPath {
-            let maskLayer = CAShapeLayer()
-            maskLayer.path = clipPath
-            self.mask = maskLayer
+            let ml = CAShapeLayer()
+            ml.path = clipPath
+            self.mask = ml
         } else {
             self.mask = nil
         }
@@ -91,17 +79,14 @@ final class SVGABitmapLayer: CALayer {
     }
 
     func setDynamicText(_ text: NSAttributedString?) {
-        // 移除旧文字层
         textLayer?.removeFromSuperlayer()
         textLayer = nil
-
         guard let text = text else { return }
-
         let tl = CATextLayer()
-        tl.isWrapped = true
-        tl.contentsScale = UIScreen.main.scale
-        tl.string = text
-        tl.frame = bounds
+        tl.isWrapped      = true
+        tl.contentsScale  = UIScreen.main.scale
+        tl.string         = text
+        tl.frame          = bounds
         addSublayer(tl)
         textLayer = tl
     }
@@ -113,9 +98,10 @@ final class SVGABitmapLayer: CALayer {
 
     func clearDynamic() {
         dynamicImage = nil
-        contents = originalImage?.cgImage
+        contents     = originalImage?.cgImage
         textLayer?.removeFromSuperlayer()
-        textLayer = nil
-        isDynamicHidden = false
+        textLayer        = nil
+        isDynamicHidden  = false
+        transform        = CATransform3DIdentity
     }
 }

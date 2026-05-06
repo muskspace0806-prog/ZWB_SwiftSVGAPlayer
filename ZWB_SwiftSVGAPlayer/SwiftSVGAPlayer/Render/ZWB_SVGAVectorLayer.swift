@@ -1,9 +1,10 @@
-// Sources/SwiftSVGAPlayer/Render/ZWB_SVGAVectorLayer.swift
+// ZWB_SwiftSVGAPlayer/SwiftSVGAPlayer/Render/ZWB_SVGAVectorLayer.swift
 
 import UIKit
 import QuartzCore
 
-/// 渲染矢量形状的 CALayer（使用 CAShapeLayer 子层）
+/// 渲染矢量形状的 CALayer
+/// frame 覆盖整个画布，shape 用绝对坐标定位
 final class SVGAVectorLayer: CALayer {
 
     private var shapeLayers: [CAShapeLayer] = []
@@ -11,13 +12,14 @@ final class SVGAVectorLayer: CALayer {
     override init() {
         super.init()
         isGeometryFlipped = false
+        masksToBounds     = false
     }
 
     override init(layer: Any) { super.init(layer: layer) }
     required init?(coder: NSCoder) { super.init(coder: coder) }
 
     func apply(shapes: [SVGAShape], frame: SVGAFrame, canvasSize: CGSize) {
-        // 复用或创建 shape layers
+        // 补齐 shape layers
         while shapeLayers.count < shapes.count {
             let sl = CAShapeLayer()
             addSublayer(sl)
@@ -31,15 +33,15 @@ final class SVGAVectorLayer: CALayer {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
 
-        let layout = frame.layout
-        self.frame = CGRect(x: CGFloat(layout.x), y: CGFloat(layout.y),
-                            width: CGFloat(layout.width), height: CGFloat(layout.height))
+        // 覆盖整个画布
+        if self.frame.size != canvasSize {
+            self.frame = CGRect(origin: .zero, size: canvasSize)
+        }
         self.opacity = Float(frame.alpha)
 
         for (i, shape) in shapes.enumerated() {
-            let sl = shapeLayers[i]
-            sl.isHidden = false
-            applyShape(shape, to: sl)
+            shapeLayers[i].isHidden = false
+            applyShape(shape, to: shapeLayers[i])
         }
 
         CATransaction.commit()
@@ -48,16 +50,13 @@ final class SVGAVectorLayer: CALayer {
     private func applyShape(_ shape: SVGAShape, to layer: CAShapeLayer) {
         layer.frame = self.bounds
 
-        // 路径
         switch shape.type {
         case .shape:
+            // 完整 SVG path 解析在 Phase 6，暂时跳过
             if let d = shape.pathData {
-                // 路径已在 SVGABinaryDecoder 中解析为 CGPath，这里直接用 pathData 字符串重新解析
-                // 实际上 SVGAFrame.shapes 中的 SVGAShape 已经包含了解析好的路径信息
-                // 这里简化处理：直接设置 nil，完整 vector 支持在 Phase 6 实现
-                layer.path = nil
-                svgaLogVerbose("Vector shape path: \(d.prefix(50))")
+                svgaLogVerbose("Vector shape path (pending): \(d.prefix(30))")
             }
+            layer.path = nil
         case .rect:
             if let r = shape.rectArgs {
                 layer.path = CGPath(roundedRect: r, cornerWidth: 0, cornerHeight: 0, transform: nil)
@@ -69,10 +68,9 @@ final class SVGAVectorLayer: CALayer {
                 layer.path = CGPath(ellipseIn: rect, transform: nil)
             }
         case .keep:
-            break // 保持上一帧路径
+            break
         }
 
-        // 样式
         let style = shape.style
         layer.fillColor   = style.fillColor?.cgColor
         layer.strokeColor = style.strokeColor?.cgColor
@@ -84,17 +82,11 @@ final class SVGAVectorLayer: CALayer {
             layer.lineDashPattern = style.lineDashPattern.map { NSNumber(value: Double($0)) }
             layer.lineDashPhase   = style.lineDashOffset
         }
-
-        // 变换
-        if shape.transform != .identity {
-            layer.transform = CATransform3DMakeAffineTransform(shape.transform)
-        } else {
-            layer.transform = CATransform3DIdentity
-        }
+        layer.transform = shape.transform != .identity
+            ? CATransform3DMakeAffineTransform(shape.transform)
+            : CATransform3DIdentity
     }
 }
-
-// MARK: - CAShapeLayerLineCap / LineJoin helpers
 
 private extension CAShapeLayerLineCap {
     init(_ cap: CGLineCap) {

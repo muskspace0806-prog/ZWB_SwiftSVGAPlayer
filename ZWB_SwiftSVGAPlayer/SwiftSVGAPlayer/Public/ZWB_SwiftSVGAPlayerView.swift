@@ -11,15 +11,12 @@ final class SwiftSVGAPlayerView: UIView {
     var isMuted: Bool = false {
         didSet { audioController.isMuted = isMuted }
     }
-
     var isReversed: Bool = false {
         didSet { playbackController.isReversed = isReversed }
     }
-
     var isDebugLogEnabled: Bool = false {
         didSet { SVGALogger.shared.logLevel = isDebugLogEnabled ? .debug : .warning }
     }
-
     var clearsAfterStop: Bool = false
 
     // MARK: - Readonly State
@@ -78,42 +75,62 @@ final class SwiftSVGAPlayerView: UIView {
     }
 
     // MARK: - Layout
-
+    //
+    // 核心原则：
+    //   renderLayer.bounds = canvasSize（固定，由 configure 设置）
+    //   renderLayer.frame  = 目标显示区域（由 contentMode 计算）
+    //   CALayer 会自动将 bounds 内容缩放到 frame 大小，无需手动 transform
+    //
     private func updateRenderLayerFrame() {
-        guard let video = currentVideo else { renderLayer.frame = bounds; return }
+        guard let video = currentVideo else {
+            renderLayer.frame = bounds
+            return
+        }
         let canvasSize = video.size
-        let viewSize = bounds.size
+        let viewSize   = bounds.size
         guard canvasSize.width > 0, canvasSize.height > 0,
-              viewSize.width > 0, viewSize.height > 0 else {
-            renderLayer.frame = bounds; return
+              viewSize.width > 0,   viewSize.height > 0 else {
+            renderLayer.frame = bounds
+            return
         }
 
-        let frame: CGRect
+        let targetFrame: CGRect
         switch contentMode {
         case .scaleToFill:
-            frame = bounds
+            targetFrame = bounds
+
         case .scaleAspectFit:
-            let scale = Swift.min(viewSize.width / canvasSize.width, viewSize.height / canvasSize.height)
-            let w = canvasSize.width * scale; let h = canvasSize.height * scale
-            frame = CGRect(x: (viewSize.width - w) / 2, y: (viewSize.height - h) / 2, width: w, height: h)
+            let scale = Swift.min(viewSize.width  / canvasSize.width,
+                                  viewSize.height / canvasSize.height)
+            let w = canvasSize.width  * scale
+            let h = canvasSize.height * scale
+            targetFrame = CGRect(x: (viewSize.width  - w) / 2,
+                                 y: (viewSize.height - h) / 2,
+                                 width: w, height: h)
+
         case .scaleAspectFill:
-            let scale = Swift.max(viewSize.width / canvasSize.width, viewSize.height / canvasSize.height)
-            let w = canvasSize.width * scale; let h = canvasSize.height * scale
-            frame = CGRect(x: (viewSize.width - w) / 2, y: (viewSize.height - h) / 2, width: w, height: h)
+            let scale = Swift.max(viewSize.width  / canvasSize.width,
+                                  viewSize.height / canvasSize.height)
+            let w = canvasSize.width  * scale
+            let h = canvasSize.height * scale
+            targetFrame = CGRect(x: (viewSize.width  - w) / 2,
+                                 y: (viewSize.height - h) / 2,
+                                 width: w, height: h)
+
         default:
-            frame = CGRect(origin: .zero, size: canvasSize)
+            // center / topLeft 等：不缩放，原始尺寸居中
+            targetFrame = CGRect(x: (viewSize.width  - canvasSize.width)  / 2,
+                                 y: (viewSize.height - canvasSize.height) / 2,
+                                 width:  canvasSize.width,
+                                 height: canvasSize.height)
         }
 
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        renderLayer.frame = frame
-        if frame.size != canvasSize {
-            renderLayer.transform = CATransform3DMakeScale(
-                frame.width / canvasSize.width,
-                frame.height / canvasSize.height, 1)
-        } else {
-            renderLayer.transform = CATransform3DIdentity
-        }
+        // 只设置 frame，bounds 保持 canvasSize 不变
+        // CALayer 自动把 bounds 内容缩放到 frame 大小
+        renderLayer.frame     = targetFrame
+        renderLayer.transform = CATransform3DIdentity   // 永远不用 transform 缩放
         CATransaction.commit()
     }
 
@@ -127,7 +144,6 @@ final class SwiftSVGAPlayerView: UIView {
 
         do {
             let video = try await parser.parse(source)
-
             guard currentSource == source else { throw SVGAError.cancelled }
 
             self.currentVideo = video
@@ -165,15 +181,12 @@ final class SwiftSVGAPlayerView: UIView {
         pendingLoopMode = loop
         loadTask = Task { [weak self] in
             guard let self = self else { return }
-            do {
-                try await self.load(source)
-                self.play(loop: loop)
-            } catch { }
+            do { try await self.load(source); self.play(loop: loop) } catch {}
         }
     }
 
     func play(range: Range<Int>, loop: SVGALoopMode) {
-        pendingRange = range
+        pendingRange    = range
         pendingLoopMode = loop
         guard let video = currentVideo else { return }
         startPlayback(video: video, range: range.clamped(toTotalFrames: video.frames), loop: loop)
@@ -209,7 +222,7 @@ final class SwiftSVGAPlayerView: UIView {
         audioController.stop()
         renderLayer.clearLayers()
         currentVideo = nil; currentSource = nil
-        currentFrame = 0; totalFrames = 0
+        currentFrame = 0;   totalFrames   = 0
         setState(.idle)
     }
 
@@ -263,12 +276,8 @@ final class SwiftSVGAPlayerView: UIView {
             self.audioController.update(frame: frame)
             self.onFrameChange?(frame, self.progress)
         }
-        playbackController.onStateChange = { [weak self] state in
-            self?.setState(state)
-        }
-        playbackController.onComplete = { [weak self] in
-            self?.onCompletion?()
-        }
+        playbackController.onStateChange = { [weak self] state in self?.setState(state) }
+        playbackController.onComplete    = { [weak self] in self?.onCompletion?() }
     }
 
     private func setState(_ newState: SVGAPlaybackState) {
