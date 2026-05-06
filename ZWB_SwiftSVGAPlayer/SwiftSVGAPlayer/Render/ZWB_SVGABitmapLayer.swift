@@ -11,6 +11,8 @@ final class SVGABitmapLayer: CALayer {
     private var dynamicImage: UIImage?
     private var originalImage: UIImage?
     private var textLayer: CATextLayer?
+    private var drawingBlock: SVGADrawingBlock?
+    private var drawingLayer: CALayer?
     var isDynamicHidden: Bool = false
 
     // MARK: - Init
@@ -91,6 +93,25 @@ final class SVGABitmapLayer: CALayer {
         textLayer = tl
     }
 
+    func setDrawingBlock(_ block: SVGADrawingBlock?) {
+        drawingBlock = block
+        drawingLayer?.removeFromSuperlayer()
+        drawingLayer = nil
+        guard block != nil else { return }
+        let dl = SVGADrawingLayer()
+        dl.frame = bounds
+        dl.drawingBlock = block
+        addSublayer(dl)
+        drawingLayer = dl
+    }
+
+    /// 通知 drawing layer 重绘（每帧调用）
+    func updateDrawing(frameIndex: Int) {
+        guard let dl = drawingLayer as? SVGADrawingLayer else { return }
+        dl.currentFrameIndex = frameIndex
+        dl.setNeedsDisplay()
+    }
+
     override func layoutSublayers() {
         super.layoutSublayers()
         textLayer?.frame = bounds
@@ -101,7 +122,23 @@ final class SVGABitmapLayer: CALayer {
         contents     = originalImage?.cgImage
         textLayer?.removeFromSuperlayer()
         textLayer        = nil
+        drawingLayer?.removeFromSuperlayer()
+        drawingLayer     = nil
+        drawingBlock     = nil
         isDynamicHidden  = false
         transform        = CATransform3DIdentity
+    }
+}
+
+// MARK: - SVGADrawingLayer
+
+/// 自定义绘制层，每帧调用 drawingBlock
+private final class SVGADrawingLayer: CALayer {
+    var drawingBlock: SVGADrawingBlock?
+    var currentFrameIndex: Int = 0
+
+    override func draw(in ctx: CGContext) {
+        guard let block = drawingBlock else { return }
+        block(ctx, bounds, currentFrameIndex)
     }
 }

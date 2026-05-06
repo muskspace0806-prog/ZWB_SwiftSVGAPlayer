@@ -52,11 +52,13 @@ final class SVGAVectorLayer: CALayer {
 
         switch shape.type {
         case .shape:
-            // 完整 SVG path 解析在 Phase 6，暂时跳过
+            // pathData 已在 SVGABinaryDecoder.parseSVGPath 解析为 CGPath 并存入 SVGAFrame
+            // 但 SVGAShape 目前只存字符串，需要在这里解析
             if let d = shape.pathData {
-                svgaLogVerbose("Vector shape path (pending): \(d.prefix(30))")
+                layer.path = SVGAPathParser.parse(d)
+            } else {
+                layer.path = nil
             }
-            layer.path = nil
         case .rect:
             if let r = shape.rectArgs {
                 layer.path = CGPath(roundedRect: r, cornerWidth: 0, cornerHeight: 0, transform: nil)

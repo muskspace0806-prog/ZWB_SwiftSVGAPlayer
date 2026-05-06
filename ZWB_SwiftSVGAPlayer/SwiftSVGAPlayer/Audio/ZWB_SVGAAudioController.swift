@@ -39,11 +39,23 @@ final class SVGAAudioController {
     func update(frame: Int) {
         for audio in audios {
             guard let player = players[audio.audioKey] else { continue }
+
             if frame == audio.startFrame {
+                // 精确定位到 startTime 偏移
                 let offset = TimeInterval(audio.startTime) / 1000.0
-                player.currentTime = offset
+                if abs(player.currentTime - offset) > 0.05 || !player.isPlaying {
+                    player.currentTime = offset
+                }
                 if !player.isPlaying { player.play() }
+
+            } else if frame > audio.startFrame && frame < audio.endFrame {
+                // 中途恢复播放（如 resume 后）
+                if !player.isPlaying { player.play() }
+
             } else if frame >= audio.endFrame && player.isPlaying {
+                player.stop()
+
+            } else if frame < audio.startFrame && player.isPlaying {
                 player.stop()
             }
         }

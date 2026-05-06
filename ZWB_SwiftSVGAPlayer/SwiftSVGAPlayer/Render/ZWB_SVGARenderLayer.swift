@@ -28,7 +28,6 @@ final class SVGARenderLayer: CALayer {
     // MARK: - Configure
 
     func configure(video: SVGAVideo) {
-        // 同一 video 不重建
         if isConfigured,
            let cur = self.video,
            cur.size == video.size && cur.frames == video.frames {
@@ -39,9 +38,9 @@ final class SVGARenderLayer: CALayer {
         isConfigured  = true
 
         let canvasSize = video.size
-        // bounds 固定为画布原始尺寸，frame 由外部设置
         bounds = CGRect(origin: .zero, size: canvasSize)
 
+        // 先建所有 spriteLayer，再处理 matte（需要先有所有 layer 才能找到 matteKey 对应的 layer）
         for sprite in video.sprites {
             let image       = sprite.imageKey.flatMap { video.images[$0]?.image }
             let spriteLayer = SVGASpriteLayer(sprite: sprite, image: image, canvasSize: canvasSize)
@@ -49,7 +48,31 @@ final class SVGARenderLayer: CALayer {
             spriteLayers.append(spriteLayer)
         }
 
+        // 应用 matte：找到 matteKey 对应的 spriteLayer，作为 mask
+        applyMatteLayers(video: video)
+
         svgaLogDebug("RenderLayer configured: \(video.sprites.count) sprites, canvas=\(canvasSize)")
+    }
+
+    private func applyMatteLayers(video: SVGAVideo) {
+        // 建立 imageKey → spriteLayer 的映射
+        var keyToLayer: [String: SVGASpriteLayer] = [:]
+        for sl in spriteLayers {
+            if let key = sl.sprite?.imageKey {
+                keyToLayer[key] = sl
+            }
+        }
+        // 对有 matteKey 的 sprite，把对应 layer 设为 mask
+        for sl in spriteLayers {
+            guard let matteKey = sl.sprite?.matteKey, !matteKey.isEmpty else { continue }
+            if let matteLayer = keyToLayer[matteKey] {
+                // 从父层移除 matteLayer，改为 mask
+                matteLayer.removeFromSuperlayer()
+                spriteLayers.removeAll { $0 === matteLayer }
+                sl.mask = matteLayer
+                svgaLogDebug("Applied matte: \(matteKey) → \(sl.sprite?.imageKey ?? "?")")
+            }
+        }
     }
 
     // MARK: - Step
@@ -63,6 +86,10 @@ final class SVGARenderLayer: CALayer {
         CATransaction.setDisableActions(true)
         for sl in spriteLayers {
             sl.step(to: f, canvasSize: canvasSize, dynamicItems: dynamicItems)
+            // 同步更新 matte mask layer
+            if let matteLayer = sl.mask as? SVGASpriteLayer {
+                matteLayer.step(to: f, canvasSize: canvasSize, dynamicItems: dynamicItems)
+            }
         }
         CATransaction.commit()
     }

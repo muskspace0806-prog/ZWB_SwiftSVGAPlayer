@@ -77,13 +77,15 @@ final class SVGASpriteLayer: CALayer {
                 case .image(let img):  bl.setDynamicImage(img)
                 case .text(let attr):  bl.setDynamicText(attr)
                 case .hidden:          bl.isDynamicHidden = true
-                case .drawing, .imageURL: break
+                case .drawing(let block): bl.setDrawingBlock(block)
+                case .imageURL: break
                 }
             } else {
                 bl.isDynamicHidden = false
                 bl.setDynamicImage(nil)
             }
             bl.apply(frame: svgaFrame, canvasSize: canvasSize)
+            bl.updateDrawing(frameIndex: frameIndex)
         }
 
         // Vector layer
