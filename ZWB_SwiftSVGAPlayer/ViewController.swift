@@ -1,5 +1,4 @@
 // ZWB_SwiftSVGAPlayer/ViewController.swift
-// Demo ViewController - 展示 SwiftSVGAPlayer 完整功能
 
 import UIKit
 
@@ -42,37 +41,30 @@ class ViewController: UIViewController {
         return s
     }()
 
-    private lazy var playButton    = makeButton("▶ Play",    action: #selector(tapPlay))
-    private lazy var pauseButton   = makeButton("⏸ Pause",   action: #selector(tapPause))
-    private lazy var resumeButton  = makeButton("▶ Resume",  action: #selector(tapResume))
-    private lazy var stopButton    = makeButton("⏹ Stop",    action: #selector(tapStop))
-    private lazy var clearButton   = makeButton("🗑 Clear",   action: #selector(tapClear))
-    private lazy var urlButton     = makeButton("🌐 URL",     action: #selector(tapURL))
-    private lazy var localButton   = makeButton("📦 Local",   action: #selector(tapLocal))
-    private lazy var rangeButton   = makeButton("📐 Range",   action: #selector(tapRange))
-    private lazy var dynamicButton = makeButton("🎨 Dynamic", action: #selector(tapDynamic))
-    private lazy var stopSceneSegment: UISegmentedControl = {
-        let s = UISegmentedControl(items: ["Clear", "Leading", "Trailing", "Keep"])
-        s.selectedSegmentIndex = 0
-        s.tintColor = .systemBlue
-        return s
-    }()
+    private lazy var playButton        = makeButton("▶ Play",    action: #selector(tapPlay))
+    private lazy var pauseResumeButton = makeButton("⏸ Pause",   action: #selector(tapPauseResume))
+    private lazy var urlButton         = makeButton("🌐 URL",     action: #selector(tapURL))
+    private lazy var localButton       = makeButton("📦 Local",   action: #selector(tapLocal))
+
     private lazy var loopSegment: UISegmentedControl = {
         let s = UISegmentedControl(items: ["Once", "×3", "∞"])
         s.selectedSegmentIndex = 2
         s.tintColor = .systemBlue
         return s
     }()
+
     private lazy var muteSwitch: UISwitch = {
         let sw = UISwitch()
         sw.addTarget(self, action: #selector(muteSwitchChanged(_:)), for: .valueChanged)
         return sw
     }()
+
     private lazy var debugSwitch: UISwitch = {
         let sw = UISwitch()
         sw.addTarget(self, action: #selector(debugSwitchChanged(_:)), for: .valueChanged)
         return sw
     }()
+
     private lazy var reverseSwitch: UISwitch = {
         let sw = UISwitch()
         sw.addTarget(self, action: #selector(reverseSwitchChanged(_:)), for: .valueChanged)
@@ -92,9 +84,6 @@ class ViewController: UIViewController {
     // MARK: - Layout
 
     private func setupLayout() {
-        // Player view
-        // 宽度 = 屏幕 85%，高度由 intrinsicContentSize（画布比例）驱动
-        // 加载前给一个默认高度占位，加载后 Auto Layout 自动更新
         view.addSubview(playerView)
         playerView.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
@@ -104,7 +93,6 @@ class ViewController: UIViewController {
             playerView.heightAnchor.constraint(equalTo: playerView.widthAnchor, multiplier: 0.75)
         ])
 
-        // Labels
         let labelStack = UIStackView(arrangedSubviews: [stateLabel, frameLabel])
         labelStack.axis = .vertical
         labelStack.spacing = 4
@@ -116,7 +104,6 @@ class ViewController: UIViewController {
             labelStack.trailingAnchor.constraint(equalTo: playerView.trailingAnchor)
         ])
 
-        // Seek slider
         view.addSubview(seekSlider)
         seekSlider.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
@@ -125,28 +112,21 @@ class ViewController: UIViewController {
             seekSlider.trailingAnchor.constraint(equalTo: playerView.trailingAnchor)
         ])
 
-        // Loop segment
-        let loopLabel = makeLabel("Loop:")
-        let loopRow = makeRow([loopLabel, loopSegment])
+        // Loop
+        let loopRow = makeRow([makeLabel("Loop:"), loopSegment])
 
-        // Stop scene segment
-        let stopLabel = makeLabel("Stop:")
-        let stopRow = makeRow([stopLabel, stopSceneSegment])
-
-        // Mute / Debug row
-        let muteLabel    = makeLabel("Mute:")
-        let debugLabel   = makeLabel("Debug:")
-        let reverseLabel = makeLabel("Reverse:")
-        let toggleRow    = makeRow([muteLabel, muteSwitch, debugLabel, debugSwitch, reverseLabel, reverseSwitch])
-
-        // Control buttons
-        let row1 = makeRow([playButton, pauseButton, resumeButton])
-        let row2 = makeRow([stopButton, clearButton])
-        let row3 = makeRow([urlButton, localButton, rangeButton, dynamicButton])
-
-        let mainStack = UIStackView(arrangedSubviews: [
-            loopRow, stopRow, toggleRow, row1, row2, row3
+        // Mute / Debug / Reverse
+        let toggleRow = makeRow([
+            makeLabel("Mute:"),    muteSwitch,
+            makeLabel("Debug:"),   debugSwitch,
+            makeLabel("Reverse:"), reverseSwitch
         ])
+
+        // Buttons
+        let btnRow1 = makeRow([playButton, pauseResumeButton])
+        let btnRow2 = makeRow([urlButton, localButton])
+
+        let mainStack = UIStackView(arrangedSubviews: [loopRow, toggleRow, btnRow1, btnRow2])
         mainStack.axis = .vertical
         mainStack.spacing = 10
         mainStack.translatesAutoresizingMaskIntoConstraints = false
@@ -162,28 +142,27 @@ class ViewController: UIViewController {
 
     private func setupCallbacks() {
         playerView.onStateChange = { [weak self] state in
-            DispatchQueue.main.async {
-                self?.stateLabel.text = "State: \(state)"
+            self?.stateLabel.text = "State: \(state)"
+            // 同步 Pause/Resume 按钮标题
+            if state == .paused {
+                self?.pauseResumeButton.setTitle("▶ Resume", for: .normal)
+            } else if state == .playing {
+                self?.pauseResumeButton.setTitle("⏸ Pause", for: .normal)
             }
         }
         playerView.onFrameChange = { [weak self] frame, progress in
             guard let self = self else { return }
-            DispatchQueue.main.async {
-                self.frameLabel.text = "Frame: \(frame) / \(self.playerView.totalFrames)"
-                if !self.seekSlider.isTracking {
-                    self.seekSlider.value = Float(progress)
-                }
+            self.frameLabel.text = "Frame: \(frame) / \(self.playerView.totalFrames)"
+            if !self.seekSlider.isTracking {
+                self.seekSlider.value = Float(progress)
             }
         }
         playerView.onCompletion = { [weak self] in
-            DispatchQueue.main.async {
-                self?.stateLabel.text = "State: completed ✅"
-            }
+            self?.stateLabel.text = "State: completed ✅"
+            self?.pauseResumeButton.setTitle("⏸ Pause", for: .normal)
         }
         playerView.onError = { [weak self] error in
-            DispatchQueue.main.async {
-                self?.showAlert("Error", message: error.description)
-            }
+            self?.showAlert("Error", message: error.description)
         }
     }
 
@@ -193,28 +172,21 @@ class ViewController: UIViewController {
         playerView.play(loop: selectedLoopMode)
     }
 
-    @objc private func tapPause() {
-        playerView.pause()
-    }
-
-    @objc private func tapResume() {
-        playerView.resume()
-    }
-
-    @objc private func tapStop() {
-        playerView.stop(then: selectedStopScene)
-    }
-
-    @objc private func tapClear() {
-        playerView.clear()
-        seekSlider.value = 0
+    @objc private func tapPauseResume() {
+        switch playerView.state {
+        case .playing:
+            playerView.pause()
+        case .paused:
+            playerView.resume()
+        default:
+            playerView.play(loop: selectedLoopMode)
+        }
     }
 
     @objc private func tapURL() {
-        // 弹出输入框让用户填写 URL，默认填入官方样例
         let alert = UIAlertController(title: "输入 SVGA URL", message: nil, preferredStyle: .alert)
         alert.addTextField { tf in
-            tf.text = "https://github.com/svga/SVGA-Samples/raw/master/angel.svga"
+            tf.text = "https://res.gimmelive.net/level_2_boom.svga"
             tf.clearButtonMode = .whileEditing
             tf.autocorrectionType = .no
             tf.autocapitalizationType = .none
@@ -235,8 +207,7 @@ class ViewController: UIViewController {
     }
 
     @objc private func tapLocal() {
-        // 弹出输入框让用户填写文件名（不含扩展名）
-        let alert = UIAlertController(title: "本地 SVGA 文件名", message: "输入 Bundle 内 .svga 文件名（不含扩展名）", preferredStyle: .alert)
+        let alert = UIAlertController(title: "本地 SVGA", message: "输入 Bundle 内文件名（不含扩展名）", preferredStyle: .alert)
         alert.addTextField { tf in
             tf.text = "test01"
             tf.clearButtonMode = .whileEditing
@@ -251,36 +222,12 @@ class ViewController: UIViewController {
                     self.playerView.play(loop: self.selectedLoopMode)
                 } catch SVGAError.fileNotFound {
                     await MainActor.run {
-                        self.showAlert("文件不存在", message: "Bundle 中找不到 \(name).svga\n\n请将 .svga 文件拖入 Xcode 工程并勾选 Add to target")
+                        self.showAlert("文件不存在", message: "找不到 \(name).svga，请确认已加入 target")
                     }
                 } catch { }
             }
         })
         present(alert, animated: true)
-    }
-
-    @objc private func tapRange() {
-        // 播放第 5~15 帧
-        playerView.play(range: 5..<15, loop: selectedLoopMode)
-    }
-
-    @objc private func tapDynamic() {
-        // 演示动态文字替换
-        let attr = NSAttributedString(
-            string: "SwiftSVGAPlayer",
-            attributes: [
-                .foregroundColor: UIColor.systemYellow,
-                .font: UIFont.boldSystemFont(ofSize: 14)
-            ]
-        )
-        playerView.setText(attr, forKey: "name")
-
-        // 演示动态图片（用系统图标代替）
-        if let img = UIImage(systemName: "star.fill")?.withTintColor(.systemOrange, renderingMode: .alwaysOriginal) {
-            playerView.setImage(img, forKey: "avatar")
-        }
-
-        showAlert("Dynamic", message: "已设置动态文字 'name' 和动态图片 'avatar'")
     }
 
     @objc private func sliderChanged(_ slider: UISlider) {
@@ -306,15 +253,6 @@ class ViewController: UIViewController {
         case 0: return .once
         case 1: return .count(3)
         default: return .forever
-        }
-    }
-
-    private var selectedStopScene: SVGAStopScene {
-        switch stopSceneSegment.selectedSegmentIndex {
-        case 0: return .clearLayers
-        case 1: return .stepToLeading
-        case 2: return .stepToTrailing
-        default: return .keepCurrentFrame
         }
     }
 
