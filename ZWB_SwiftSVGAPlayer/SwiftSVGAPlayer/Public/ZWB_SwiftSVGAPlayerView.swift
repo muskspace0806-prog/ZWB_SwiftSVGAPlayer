@@ -65,6 +65,7 @@ final class SwiftSVGAPlayerView: UIView {
 
     private func setup() {
         backgroundColor = .clear
+        clipsToBounds   = false   // 允许动画内容超出 view 边界
         layer.addSublayer(renderLayer)
         setupPlaybackController()
     }
