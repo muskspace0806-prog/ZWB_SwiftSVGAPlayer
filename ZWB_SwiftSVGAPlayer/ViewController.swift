@@ -73,6 +73,11 @@ class ViewController: UIViewController {
         sw.addTarget(self, action: #selector(debugSwitchChanged(_:)), for: .valueChanged)
         return sw
     }()
+    private lazy var reverseSwitch: UISwitch = {
+        let sw = UISwitch()
+        sw.addTarget(self, action: #selector(reverseSwitchChanged(_:)), for: .valueChanged)
+        return sw
+    }()
 
     // MARK: - Lifecycle
 
@@ -129,9 +134,10 @@ class ViewController: UIViewController {
         let stopRow = makeRow([stopLabel, stopSceneSegment])
 
         // Mute / Debug row
-        let muteLabel  = makeLabel("Mute:")
-        let debugLabel = makeLabel("Debug:")
-        let toggleRow  = makeRow([muteLabel, muteSwitch, debugLabel, debugSwitch])
+        let muteLabel    = makeLabel("Mute:")
+        let debugLabel   = makeLabel("Debug:")
+        let reverseLabel = makeLabel("Reverse:")
+        let toggleRow    = makeRow([muteLabel, muteSwitch, debugLabel, debugSwitch, reverseLabel, reverseSwitch])
 
         // Control buttons
         let row1 = makeRow([playButton, pauseButton, resumeButton])
@@ -287,6 +293,10 @@ class ViewController: UIViewController {
 
     @objc private func debugSwitchChanged(_ sw: UISwitch) {
         playerView.isDebugLogEnabled = sw.isOn
+    }
+
+    @objc private func reverseSwitchChanged(_ sw: UISwitch) {
+        playerView.isReversed = sw.isOn
     }
 
     // MARK: - Helpers

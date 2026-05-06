@@ -1,31 +1,25 @@
-// Sources/SwiftSVGAPlayer/Playback/ZWB_SVGADisplayLinkDriver.swift
+// ZWB_SwiftSVGAPlayer/SwiftSVGAPlayer/Playback/ZWB_SVGADisplayLinkDriver.swift
 
 import UIKit
 import QuartzCore
 
 /// CADisplayLink 封装，支持指定 fps 驱动
+@MainActor
 final class SVGADisplayLinkDriver {
 
     private var displayLink: CADisplayLink?
     private var tick: (() -> Void)?
-    private var targetFPS: Int = 20
-    private var frameInterval: Int = 1
-    private var tickCounter: Int = 0
 
     // MARK: - Public
 
     func start(fps: Int, tick: @escaping () -> Void) {
         stop()
         self.tick = tick
-        self.targetFPS = max(1, min(fps, 60))
+        let targetFPS = Swift.max(1, Swift.min(fps, 60))
 
         let link = CADisplayLink(target: WeakTarget(self), selector: #selector(WeakTarget.tick(_:)))
         link.add(to: .main, forMode: .common)
-        displayLink = link
-        tickCounter = 0
 
-        // 计算跳帧间隔（屏幕刷新率 / 目标 fps）
-        // iOS 15+ 可用 preferredFrameRateRange，iOS 13 用 preferredFramesPerSecond
         if #available(iOS 15.0, *) {
             link.preferredFrameRateRange = CAFrameRateRange(
                 minimum: Float(targetFPS),
@@ -36,6 +30,7 @@ final class SVGADisplayLinkDriver {
             link.preferredFramesPerSecond = targetFPS
         }
 
+        displayLink = link
         svgaLogDebug("DisplayLink started at \(targetFPS) fps")
     }
 
@@ -43,7 +38,6 @@ final class SVGADisplayLinkDriver {
         displayLink?.invalidate()
         displayLink = nil
         tick = nil
-        tickCounter = 0
     }
 
     func pause() {
@@ -54,14 +48,22 @@ final class SVGADisplayLinkDriver {
         displayLink?.isPaused = false
     }
 
-    // MARK: - Tick
+    /// nonisolated 版本，供 deinit 调用
+    nonisolated func stopFromDeinit() {
+        // CADisplayLink.invalidate() 是线程安全的，可在任意线程调用
+        DispatchQueue.main.async { [weak self] in
+            self?.displayLink?.invalidate()
+            self?.displayLink = nil
+            self?.tick = nil
+        }
+    }
 
     fileprivate func handleTick() {
         tick?()
     }
 
     deinit {
-        stop()
+        displayLink?.invalidate()
     }
 }
 

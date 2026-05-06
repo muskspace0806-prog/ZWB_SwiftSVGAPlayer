@@ -12,7 +12,10 @@ final class SwiftSVGAPlayerView: UIView {
         didSet { audioController.isMuted = isMuted }
     }
     var isReversed: Bool = false {
-        didSet { playbackController.isReversed = isReversed }
+        didSet {
+            playbackController.isReversed = isReversed
+            // 播放中途切换方向：立即从当前帧反向继续，不重置帧
+        }
     }
     var isDebugLogEnabled: Bool = false {
         didSet { SVGALogger.shared.logLevel = isDebugLogEnabled ? .debug : .warning }
@@ -248,8 +251,9 @@ final class SwiftSVGAPlayerView: UIView {
     // MARK: - Private Helpers
 
     private func startPlayback(video: SVGAVideo, range: Range<Int>, loop: SVGALoopMode) {
-        playbackController.loopMode = loop
-        playbackController.range    = range
+        playbackController.loopMode   = loop
+        playbackController.range      = range
+        playbackController.isReversed = isReversed   // 必须在 configure 之前设置，configure 用它决定起始帧
         playbackController.configure(totalFrames: video.frames, fps: video.clampedFPS)
         playbackController.startDriver(fps: video.clampedFPS)
     }

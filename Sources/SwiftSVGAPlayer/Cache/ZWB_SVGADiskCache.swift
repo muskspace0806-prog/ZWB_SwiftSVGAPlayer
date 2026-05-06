@@ -1,15 +1,15 @@
-// Sources/SwiftSVGAPlayer/Cache/ZWB_SVGADiskCache.swift
+// ZWB_SwiftSVGAPlayer/SwiftSVGAPlayer/Cache/ZWB_SVGADiskCache.swift
 
 import Foundation
 
-/// 原始 Data 磁盘缓存（缓存下载/读取到的 .svga 原始数据）
-public final class SVGADiskCache {
-    public static let shared = SVGADiskCache()
+/// 原始 Data 磁盘缓存
+final class SVGADiskCache {
+    static let shared = SVGADiskCache()
 
     private let directory: URL
-    private let queue = DispatchQueue.svgaCache
+    private let queue = DispatchQueue(label: "com.swiftsvgaplayer.diskcache", qos: .utility)
 
-    public init(directory: URL? = nil) {
+    init(directory: URL? = nil) {
         if let dir = directory {
             self.directory = dir
         } else {
@@ -19,46 +19,37 @@ public final class SVGADiskCache {
         try? FileManager.default.createDirectory(at: self.directory, withIntermediateDirectories: true)
     }
 
-    // MARK: - Public API
-
-    public func data(forKey key: String) -> Data? {
-        let url = fileURL(for: key)
-        return try? Data(contentsOf: url)
+    nonisolated func data(forKey key: String) -> Data? {
+        try? Data(contentsOf: fileURL(for: key))
     }
 
-    public func store(_ data: Data, forKey key: String) {
+    nonisolated func store(_ data: Data, forKey key: String) {
         let url = fileURL(for: key)
         queue.async {
             try? data.write(to: url, options: .atomic)
         }
     }
 
-    public func removeData(forKey key: String) {
+    nonisolated func removeData(forKey key: String) {
         let url = fileURL(for: key)
         queue.async {
             try? FileManager.default.removeItem(at: url)
         }
     }
 
-    public func removeAll() {
-        queue.async { [weak self] in
-            guard let self = self else { return }
-            let files = (try? FileManager.default.contentsOfDirectory(
-                at: self.directory,
-                includingPropertiesForKeys: nil
-            )) ?? []
+    nonisolated func removeAll() {
+        let dir = directory
+        queue.async {
+            let files = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
             files.forEach { try? FileManager.default.removeItem(at: $0) }
         }
     }
 
-    public func contains(key: String) -> Bool {
-        return FileManager.default.fileExists(atPath: fileURL(for: key).path)
+    nonisolated func contains(key: String) -> Bool {
+        FileManager.default.fileExists(atPath: fileURL(for: key).path)
     }
 
-    // MARK: - Private
-
-    private func fileURL(for key: String) -> URL {
-        // key 已经是 MD5 hex，直接用作文件名
-        return directory.appendingPathComponent(key)
+    private nonisolated func fileURL(for key: String) -> URL {
+        directory.appendingPathComponent(key)
     }
 }

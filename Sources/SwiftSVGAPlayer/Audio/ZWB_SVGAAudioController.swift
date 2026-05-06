@@ -4,6 +4,7 @@ import AVFoundation
 import Foundation
 
 /// 音频控制器（首版：基础播放/暂停/停止/mute）
+@MainActor
 final class SVGAAudioController {
 
     private var players: [String: AVAudioPlayer] = [:]
@@ -18,7 +19,7 @@ final class SVGAAudioController {
     func configure(audios: [SVGAAudio], fps: Int) {
         stop()
         self.audios = audios
-        self.fps = max(1, fps)
+        self.fps = Swift.max(1, fps)
 
         for audio in audios {
             guard let data = audio.data else { continue }
@@ -38,11 +39,23 @@ final class SVGAAudioController {
     func update(frame: Int) {
         for audio in audios {
             guard let player = players[audio.audioKey] else { continue }
+
             if frame == audio.startFrame {
+                // 精确定位到 startTime 偏移
                 let offset = TimeInterval(audio.startTime) / 1000.0
-                player.currentTime = offset
+                if abs(player.currentTime - offset) > 0.05 || !player.isPlaying {
+                    player.currentTime = offset
+                }
                 if !player.isPlaying { player.play() }
+
+            } else if frame > audio.startFrame && frame < audio.endFrame {
+                // 中途恢复播放（如 resume 后）
+                if !player.isPlaying { player.play() }
+
             } else if frame >= audio.endFrame && player.isPlaying {
+                player.stop()
+
+            } else if frame < audio.startFrame && player.isPlaying {
                 player.stop()
             }
         }

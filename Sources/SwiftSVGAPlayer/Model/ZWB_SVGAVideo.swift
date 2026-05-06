@@ -35,6 +35,6 @@ public struct SVGAVideo {
 
     /// 有效帧率（最低 1，最高 60）
     public var clampedFPS: Int {
-        return max(1, min(fps, 60))
+        return Swift.max(1, Swift.min(fps, 60))
     }
 }

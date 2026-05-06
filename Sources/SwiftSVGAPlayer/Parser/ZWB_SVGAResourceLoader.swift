@@ -1,5 +1,4 @@
-// Sources/SwiftSVGAPlayer/Parser/ZWB_SVGAResourceLoader.swift
-// 负责从各种 SVGASource 读取原始 Data
+// ZWB_SwiftSVGAPlayer/SwiftSVGAPlayer/Parser/ZWB_SVGAResourceLoader.swift
 
 import Foundation
 
@@ -19,19 +18,15 @@ final class SVGAResourceLoader {
         self.keyGenerator = keyGenerator
     }
 
-    /// 从 source 加载原始 .svga Data
-    func loadData(from source: SVGASource) async throws -> Data {
+    nonisolated func loadData(from source: SVGASource) async throws -> Data {
         switch source {
         case .url(let url):
             return try await loadRemote(url: url, cacheKey: keyGenerator.cacheKey(for: source))
-
         case .fileURL(let url):
             return try loadFile(at: url)
-
         case .data(let data, _):
             guard !data.isEmpty else { throw SVGAError.invalidData }
             return data
-
         case .named(let name, let bundle):
             return try loadNamed(name, bundle: bundle)
         }
@@ -39,22 +34,19 @@ final class SVGAResourceLoader {
 
     // MARK: - Private
 
-    private func loadRemote(url: URL, cacheKey: String?) async throws -> Data {
-        // 先查磁盘缓存
+    private nonisolated func loadRemote(url: URL, cacheKey: String?) async throws -> Data {
         if let key = cacheKey, let cached = diskCache.data(forKey: key) {
             svgaLogDebug("Disk cache hit for key: \(key)")
             return cached
         }
-        // 下载
         let data = try await downloader.download(from: url)
-        // 写入磁盘缓存
         if let key = cacheKey {
             diskCache.store(data, forKey: key)
         }
         return data
     }
 
-    private func loadFile(at url: URL) throws -> Data {
+    private nonisolated func loadFile(at url: URL) throws -> Data {
         guard FileManager.default.fileExists(atPath: url.path) else {
             throw SVGAError.fileNotFound
         }
@@ -65,15 +57,41 @@ final class SVGAResourceLoader {
         }
     }
 
-    private func loadNamed(_ name: String, bundle: Bundle) throws -> Data {
-        // 先尝试带 .svga 扩展名
+    private nonisolated func loadNamed(_ name: String, bundle: Bundle) throws -> Data {
+        // 1. 直接找（文件在 bundle 根目录）
         if let url = bundle.url(forResource: name, withExtension: "svga") {
             return try loadFile(at: url)
         }
-        // 再尝试不带扩展名（文件名本身含扩展名）
+        // 2. 不带扩展名找（文件名本身含扩展名）
         if let url = bundle.url(forResource: name, withExtension: nil) {
             return try loadFile(at: url)
         }
+        // 3. 在子目录里递归搜索（文件放在 Resource/ 等子文件夹时）
+        if let url = searchInSubdirectories(name: name, extension: "svga", bundle: bundle) {
+            return try loadFile(at: url)
+        }
         throw SVGAError.fileNotFound
+    }
+
+    private nonisolated func searchInSubdirectories(name: String, extension ext: String, bundle: Bundle) -> URL? {
+        guard let bundleURL = bundle.resourceURL else { return nil }
+        let fm = FileManager.default
+        guard let enumerator = fm.enumerator(
+            at: bundleURL,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles]
+        ) else { return nil }
+
+        let targetName = "\(name).\(ext)"
+        for case let url as URL in enumerator {
+            if url.lastPathComponent == targetName {
+                return url
+            }
+            // 也匹配不带扩展名的情况
+            if url.lastPathComponent == name {
+                return url
+            }
+        }
+        return nil
     }
 }
