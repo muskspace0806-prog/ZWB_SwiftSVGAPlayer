@@ -19,7 +19,7 @@ final class SVGARenderLayer: CALayer {
     override init() {
         super.init()
         isGeometryFlipped = false
-        masksToBounds     = false  // 允许 sprite 超出画布边界
+        masksToBounds     = true   // 内容限制在 renderLayer frame 内，不超出 view
     }
 
     override init(layer: Any) { super.init(layer: layer) }

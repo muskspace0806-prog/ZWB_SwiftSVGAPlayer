@@ -65,7 +65,7 @@ final class SwiftSVGAPlayerView: UIView {
 
     private func setup() {
         backgroundColor = .clear
-        clipsToBounds   = false   // 允许动画内容超出 view 边界
+        clipsToBounds   = true    // 内容不超出 view 边界
         layer.addSublayer(renderLayer)
         setupPlaybackController()
     }
@@ -77,10 +77,8 @@ final class SwiftSVGAPlayerView: UIView {
 
     // MARK: - Layout
 
-    // bounds 固定为画布原始尺寸，frame 由外部设置
-    // intrinsicContentSize 返回画布尺寸，配合 Auto Layout 自动调整 view 大小
     override var intrinsicContentSize: CGSize {
-        return currentVideo?.size ?? super.intrinsicContentSize
+        return super.intrinsicContentSize
     }
 
     private func updateRenderLayerFrame() {
@@ -96,19 +94,11 @@ final class SwiftSVGAPlayerView: UIView {
             return
         }
 
+        // 默认 scaleAspectFit：完整显示，保持比例，不超出 view
         let targetFrame: CGRect
         switch contentMode {
         case .scaleToFill:
             targetFrame = bounds
-
-        case .scaleAspectFit:
-            let scale = Swift.min(viewSize.width  / canvasSize.width,
-                                  viewSize.height / canvasSize.height)
-            let w = canvasSize.width  * scale
-            let h = canvasSize.height * scale
-            targetFrame = CGRect(x: (viewSize.width  - w) / 2,
-                                 y: (viewSize.height - h) / 2,
-                                 width: w, height: h)
 
         case .scaleAspectFill:
             let scale = Swift.max(viewSize.width  / canvasSize.width,
@@ -119,20 +109,20 @@ final class SwiftSVGAPlayerView: UIView {
                                  y: (viewSize.height - h) / 2,
                                  width: w, height: h)
 
-        default:
-            // center / topLeft 等：不缩放，原始尺寸居中
-            targetFrame = CGRect(x: (viewSize.width  - canvasSize.width)  / 2,
-                                 y: (viewSize.height - canvasSize.height) / 2,
-                                 width:  canvasSize.width,
-                                 height: canvasSize.height)
+        default: // scaleAspectFit（默认）
+            let scale = Swift.min(viewSize.width  / canvasSize.width,
+                                  viewSize.height / canvasSize.height)
+            let w = canvasSize.width  * scale
+            let h = canvasSize.height * scale
+            targetFrame = CGRect(x: (viewSize.width  - w) / 2,
+                                 y: (viewSize.height - h) / 2,
+                                 width: w, height: h)
         }
 
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        // 只设置 frame，bounds 保持 canvasSize 不变
-        // CALayer 自动把 bounds 内容缩放到 frame 大小
         renderLayer.frame     = targetFrame
-        renderLayer.transform = CATransform3DIdentity   // 永远不用 transform 缩放
+        renderLayer.transform = CATransform3DIdentity
         CATransaction.commit()
     }
 
@@ -152,7 +142,6 @@ final class SwiftSVGAPlayerView: UIView {
             self.totalFrames  = video.frames
             self.renderLayer.configure(video: video)
             self.updateRenderLayerFrame()
-            self.invalidateIntrinsicContentSize()  // 通知 Auto Layout 重新计算尺寸
             self.audioController.configure(audios: video.audios, fps: video.clampedFPS)
             self.setState(.ready)
             return video
