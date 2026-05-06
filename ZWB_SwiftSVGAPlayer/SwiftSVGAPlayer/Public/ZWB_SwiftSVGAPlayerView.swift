@@ -76,12 +76,13 @@ final class SwiftSVGAPlayerView: UIView {
     }
 
     // MARK: - Layout
-    //
-    // 核心原则：
-    //   renderLayer.bounds = canvasSize（固定，由 configure 设置）
-    //   renderLayer.frame  = 目标显示区域（由 contentMode 计算）
-    //   CALayer 会自动将 bounds 内容缩放到 frame 大小，无需手动 transform
-    //
+
+    // bounds 固定为画布原始尺寸，frame 由外部设置
+    // intrinsicContentSize 返回画布尺寸，配合 Auto Layout 自动调整 view 大小
+    override var intrinsicContentSize: CGSize {
+        return currentVideo?.size ?? super.intrinsicContentSize
+    }
+
     private func updateRenderLayerFrame() {
         guard let video = currentVideo else {
             renderLayer.frame = bounds
@@ -151,6 +152,7 @@ final class SwiftSVGAPlayerView: UIView {
             self.totalFrames  = video.frames
             self.renderLayer.configure(video: video)
             self.updateRenderLayerFrame()
+            self.invalidateIntrinsicContentSize()  // 通知 Auto Layout 重新计算尺寸
             self.audioController.configure(audios: video.audios, fps: video.clampedFPS)
             self.setState(.ready)
             return video

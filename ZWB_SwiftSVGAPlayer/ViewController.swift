@@ -9,10 +9,10 @@ class ViewController: UIViewController {
 
     private lazy var playerView: SwiftSVGAPlayerView = {
         let v = SwiftSVGAPlayerView()
-        v.contentMode = .scaleAspectFit
+        v.contentMode = .scaleToFill   // view 尺寸由 intrinsicContentSize 保证比例，直接填满
         v.backgroundColor = UIColor(white: 0.1, alpha: 1)
         v.layer.cornerRadius = 12
-        v.clipsToBounds = true
+        v.clipsToBounds = false        // 允许粒子等效果超出边界
         return v
     }()
 
@@ -88,14 +88,19 @@ class ViewController: UIViewController {
 
     private func setupLayout() {
         // Player view
+        // 宽度 = 屏幕 85%，高度由 intrinsicContentSize（画布比例）驱动
+        // 加载前给一个默认高度占位，加载后 Auto Layout 自动更新
         view.addSubview(playerView)
         playerView.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             playerView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
             playerView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             playerView.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.85),
-            playerView.heightAnchor.constraint(equalTo: playerView.widthAnchor, multiplier: 0.75)
         ])
+        // 默认高度占位（加载后由 intrinsicContentSize 覆盖）
+        let defaultHeight = playerView.heightAnchor.constraint(equalTo: playerView.widthAnchor, multiplier: 0.75)
+        defaultHeight.priority = .defaultLow
+        defaultHeight.isActive = true
 
         // Labels
         let labelStack = UIStackView(arrangedSubviews: [stateLabel, frameLabel])
