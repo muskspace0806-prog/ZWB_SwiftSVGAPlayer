@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0] - 2026-05-11
+
+- CocoaPods pod 名称调整为 `ZWB_SwiftSVGAPlayer`
+- 版本同步到 `1.0.0`
+
 ## [0.1.0] - 2026-04-30
 
 ### Added

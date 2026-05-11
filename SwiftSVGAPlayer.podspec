@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
-  s.name             = 'SwiftSVGAPlayer'
-  s.version          = '0.1.0'
+  s.name             = 'ZWB_SwiftSVGAPlayer'
+  s.version          = '1.0.0'
   s.summary          = 'A pure Swift SVGA animation player for iOS 13+'
   s.description      = <<-DESC
     SwiftSVGAPlayer is a pure Swift implementation of an SVGA animation player.
@@ -10,10 +10,11 @@ Pod::Spec.new do |s|
     loading de-duplication, memory & disk cache.
   DESC
 
-  s.homepage         = 'https://github.com/owner/SwiftSVGAPlayer'
+  s.homepage         = 'https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer'
   s.license          = { :type => 'MIT', :file => 'LICENSE' }
   s.author           = { 'owner' => 'owner@example.com' }
-  s.source           = { :git => 'https://github.com/owner/SwiftSVGAPlayer.git', :tag => s.version.to_s }
+  s.source           = { :git => 'https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer.git', :tag => s.version.to_s }
+  s.module_name      = 'SwiftSVGAPlayer'
 
   s.ios.deployment_target = '13.0'
   s.swift_version    = '5.0'
@@ -21,7 +22,7 @@ Pod::Spec.new do |s|
   s.source_files     = 'Sources/SwiftSVGAPlayer/**/*.swift'
 
   s.resource_bundles = {
-    'SwiftSVGAPlayer' => ['Sources/SwiftSVGAPlayer/PrivacyInfo.xcprivacy']
+    'ZWB_SwiftSVGAPlayer' => ['Sources/SwiftSVGAPlayer/PrivacyInfo.xcprivacy']
   }
 
   s.frameworks = 'UIKit', 'QuartzCore', 'CoreGraphics', 'Foundation',

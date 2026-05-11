@@ -4,7 +4,7 @@
 [![Swift](https://img.shields.io/badge/Swift-5.0+-orange.svg)](https://swift.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![SPM](https://img.shields.io/badge/SPM-supported-brightgreen.svg)](Package.swift)
-[![CocoaPods](https://img.shields.io/badge/CocoaPods-supported-brightgreen.svg)](SwiftSVGAPlayer.podspec)
+[![CocoaPods](https://img.shields.io/badge/CocoaPods-supported-brightgreen.svg)](ZWB_SwiftSVGAPlayer.podspec)
 
 **SwiftSVGAPlayer** 是一个纯 Swift 实现的 SVGA 动画播放器，支持 iOS 13+，提供现代 Swift API 和 SwiftUI 支持。
 
@@ -51,7 +51,7 @@
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer.git", from: "0.1.0")
+    .package(url: "https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer.git", from: "1.0.0")
 ]
 ```
 
@@ -60,7 +60,7 @@ dependencies: [
 ### CocoaPods
 
 ```ruby
-pod 'SwiftSVGAPlayer', '~> 0.1.0'
+pod 'ZWB_SwiftSVGAPlayer', '~> 1.0.0'
 ```
 
 ---
