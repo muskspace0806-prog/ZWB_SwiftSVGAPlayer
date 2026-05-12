@@ -142,7 +142,7 @@ public final class SwiftSVGAPlayerView: UIView {
             guard currentSource == source else { throw SVGAError.cancelled }
 
             self.currentVideo = video
-            self.totalFrames  = video.frames
+            self.totalFrames  = video.playbackFrames
             self.renderLayer.configure(video: video)
             self.updateRenderLayerFrame()
             self.audioController.configure(audios: video.audios, fps: video.clampedFPS)
@@ -168,7 +168,7 @@ public final class SwiftSVGAPlayerView: UIView {
     public func play(loop: SVGALoopMode) {
         pendingLoopMode = loop
         guard let video = currentVideo else { return }
-        let range = (pendingRange ?? (0..<video.frames)).clamped(toTotalFrames: video.frames)
+        let range = (pendingRange ?? (0..<video.playbackFrames)).clamped(toTotalFrames: video.playbackFrames)
         startPlayback(video: video, range: range, loop: loop)
     }
 
@@ -184,7 +184,7 @@ public final class SwiftSVGAPlayerView: UIView {
         pendingRange    = range
         pendingLoopMode = loop
         guard let video = currentVideo else { return }
-        startPlayback(video: video, range: range.clamped(toTotalFrames: video.frames), loop: loop)
+        startPlayback(video: video, range: range.clamped(toTotalFrames: video.playbackFrames), loop: loop)
     }
 
     // MARK: - Control
@@ -199,11 +199,13 @@ public final class SwiftSVGAPlayerView: UIView {
     }
 
     public func seek(toFrame frame: Int) {
-        playbackController.seek(toFrame: frame)
-        renderLayer.step(to: frame)
-        audioController.seek(toFrame: frame)
-        currentFrame = frame
-        onFrameChange?(frame, progress)
+        guard totalFrames > 0 else { return }
+        let clampedFrame = Swift.max(0, Swift.min(frame, totalFrames - 1))
+        playbackController.seek(toFrame: clampedFrame)
+        renderLayer.step(to: clampedFrame)
+        audioController.seek(toFrame: clampedFrame)
+        currentFrame = clampedFrame
+        onFrameChange?(clampedFrame, progress)
     }
 
     public func seek(progress: Double) {
@@ -258,9 +260,8 @@ public final class SwiftSVGAPlayerView: UIView {
 
     private func startPlayback(video: SVGAVideo, range: Range<Int>, loop: SVGALoopMode) {
         playbackController.loopMode   = loop
-        playbackController.range      = range
         playbackController.isReversed = isReversed   // 必须在 configure 之前设置，configure 用它决定起始帧
-        playbackController.configure(totalFrames: video.frames, fps: video.clampedFPS)
+        playbackController.configure(totalFrames: video.playbackFrames, fps: video.clampedFPS, range: range)
         playbackController.startDriver(fps: video.clampedFPS)
     }
 

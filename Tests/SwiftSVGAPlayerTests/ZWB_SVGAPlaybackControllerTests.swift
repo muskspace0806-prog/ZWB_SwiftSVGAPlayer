@@ -94,6 +94,23 @@ final class SVGAPlaybackControllerTests: XCTestCase {
         XCTAssertEqual(controller.totalFrames, 60)
     }
 
+    func test_configure_preserves_customRange() {
+        controller.configure(totalFrames: 60, fps: 30, range: 10..<20)
+
+        XCTAssertEqual(controller.range.lowerBound, 10)
+        XCTAssertEqual(controller.range.upperBound, 20)
+        XCTAssertEqual(controller.currentFrame, 10)
+    }
+
+    func test_configure_preserves_customRange_whenReversed() {
+        controller.isReversed = true
+        controller.configure(totalFrames: 60, fps: 30, range: 10..<20)
+
+        XCTAssertEqual(controller.range.lowerBound, 10)
+        XCTAssertEqual(controller.range.upperBound, 20)
+        XCTAssertEqual(controller.currentFrame, 19)
+    }
+
     func test_configure_resets_loopCount() {
         controller.configure(totalFrames: 30, fps: 20)
         controller.configure(totalFrames: 30, fps: 20)

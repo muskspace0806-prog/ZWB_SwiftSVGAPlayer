@@ -29,3 +29,16 @@ public struct SVGAFrame {
         self.shapes = shapes
     }
 }
+
+extension SVGAFrame {
+    /// Whether this frame can draw visible content.
+    ///
+    /// Some SVGA exporters append default/empty frames at the end of a movie.
+    /// Those frames decode to alpha 1 with zero layout, which should not extend
+    /// the default playback loop because they render as a blank flash.
+    var hasRenderableContent: Bool {
+        guard alpha > 0.001 else { return false }
+        if !shapes.isEmpty { return true }
+        return layout.width > 0 && layout.height > 0
+    }
+}

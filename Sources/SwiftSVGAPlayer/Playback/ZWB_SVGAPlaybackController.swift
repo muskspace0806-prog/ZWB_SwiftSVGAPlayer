@@ -31,10 +31,10 @@ final class SVGAPlaybackController {
 
     // MARK: - Configure
 
-    func configure(totalFrames: Int, fps: Int) {
+    func configure(totalFrames: Int, fps: Int, range: Range<Int>? = nil) {
         self.totalFrames = totalFrames
-        self.range = (0..<totalFrames).clamped(toTotalFrames: totalFrames)
-        self.currentFrame = isReversed ? range.upperBound - 1 : range.lowerBound
+        self.range = (range ?? (0..<totalFrames)).clamped(toTotalFrames: totalFrames)
+        self.currentFrame = isReversed ? self.range.upperBound - 1 : self.range.lowerBound
         self.loopCount = 0
     }
 
