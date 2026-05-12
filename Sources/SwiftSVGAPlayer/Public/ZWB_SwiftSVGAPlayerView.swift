@@ -4,40 +4,40 @@ import UIKit
 import QuartzCore
 
 /// SVGA 播放器视图
-public final class SwiftSVGAPlayerView: UIView {
+final class SwiftSVGAPlayerView: UIView {
 
     // MARK: - Public Properties
 
-    public var isMuted: Bool = false {
+    var isMuted: Bool = false {
         didSet { audioController.isMuted = isMuted }
     }
-    public var isReversed: Bool = false {
+    var isReversed: Bool = false {
         didSet {
             playbackController.isReversed = isReversed
             // 播放中途切换方向：立即从当前帧反向继续，不重置帧
         }
     }
-    public var isDebugLogEnabled: Bool = false {
+    var isDebugLogEnabled: Bool = false {
         didSet { SVGALogger.shared.logLevel = isDebugLogEnabled ? .debug : .warning }
     }
-    public var clearsAfterStop: Bool = false
+    var clearsAfterStop: Bool = false
 
     // MARK: - Readonly State
 
     private(set) var state: SVGAPlaybackState = .idle
     private(set) var currentFrame: Int = 0
     private(set) var totalFrames: Int = 0
-    public var progress: Double {
+    var progress: Double {
         guard totalFrames > 0 else { return 0 }
         return Double(currentFrame) / Double(totalFrames - 1)
     }
 
     // MARK: - Callbacks
 
-    public var onStateChange: ((SVGAPlaybackState) -> Void)?
-    public var onFrameChange: ((_ frame: Int, _ progress: Double) -> Void)?
-    public var onCompletion: (() -> Void)?
-    public var onError: ((SVGAError) -> Void)?
+    var onStateChange: ((SVGAPlaybackState) -> Void)?
+    var onFrameChange: ((_ frame: Int, _ progress: Double) -> Void)?
+    var onCompletion: (() -> Void)?
+    var onError: ((SVGAError) -> Void)?
 
     // MARK: - Private
 
@@ -54,13 +54,13 @@ public final class SwiftSVGAPlayerView: UIView {
 
     // MARK: - Init
 
-    public init(frame: CGRect = .zero, parser: SVGAParsing = SVGAParser.shared) {
+    init(frame: CGRect = .zero, parser: SVGAParsing = SVGAParser.shared) {
         self.parser = parser
         super.init(frame: frame)
         setup()
     }
 
-    public required init?(coder: NSCoder) {
+    required init?(coder: NSCoder) {
         self.parser = SVGAParser.shared
         super.init(coder: coder)
         setup()
@@ -82,7 +82,7 @@ public final class SwiftSVGAPlayerView: UIView {
 
     // MARK: - Layout
 
-    public override var intrinsicContentSize: CGSize {
+    override var intrinsicContentSize: CGSize {
         return super.intrinsicContentSize
     }
 
@@ -126,7 +126,7 @@ public final class SwiftSVGAPlayerView: UIView {
     // MARK: - Load
 
     @discardableResult
-    public func load(_ source: SVGASource) async throws -> SVGAVideo {
+    func load(_ source: SVGASource) async throws -> SVGAVideo {
         loadTask?.cancel()
         setState(.loading)
         currentSource = source
