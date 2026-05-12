@@ -69,11 +69,12 @@ final class SVGADisplayLinkDriver {
 
 // MARK: - WeakTarget（避免 CADisplayLink 强引用循环）
 
+@MainActor
 private final class WeakTarget {
     weak var driver: SVGADisplayLinkDriver?
     init(_ driver: SVGADisplayLinkDriver) { self.driver = driver }
 
-    @objc func tick(_ link: CADisplayLink) {
+    @objc @MainActor func tick(_ link: CADisplayLink) {
         driver?.handleTick()
     }
 }
