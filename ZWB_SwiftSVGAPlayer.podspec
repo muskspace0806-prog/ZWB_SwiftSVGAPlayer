@@ -26,7 +26,8 @@ Pod::Spec.new do |s|
   }
 
   s.frameworks = 'UIKit', 'QuartzCore', 'CoreGraphics', 'Foundation',
-                 'AVFoundation', 'ImageIO', 'Compression', 'CryptoKit'
+                 'AVFoundation', 'ImageIO', 'CryptoKit'
+  s.libraries  = 'compression'
 
   # SwiftProtobuf 依赖已移除：本库使用自研轻量 Protobuf 解析器
   # 如需 ZIPFoundation 可取消注释：
