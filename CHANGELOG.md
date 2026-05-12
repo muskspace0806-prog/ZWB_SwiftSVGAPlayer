@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.1] - 2026-05-12
+
+- 修复 CocoaPods 集成后无法访问 `SwiftSVGAPlayerView` 的问题
+- 恢复 UIKit 和 SwiftUI 播放器入口的公开 API
+
 ## [1.0.0] - 2026-05-11
 
 - CocoaPods pod 名称调整为 `ZWB_SwiftSVGAPlayer`

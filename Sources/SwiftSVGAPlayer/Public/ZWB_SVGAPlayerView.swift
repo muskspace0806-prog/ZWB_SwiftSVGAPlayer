@@ -16,7 +16,7 @@ import SwiftUI
 ///     .onSVGAComplete { print("done") }
 /// ```
 @available(iOS 13.0, *)
-struct SVGAPlayerView: UIViewRepresentable {
+public struct SVGAPlayerView: UIViewRepresentable {
 
     // MARK: - Configuration
 
@@ -32,20 +32,20 @@ struct SVGAPlayerView: UIViewRepresentable {
 
     // MARK: - Init
 
-    init(source: SVGASource, loop: SVGALoopMode = .forever) {
+    public init(source: SVGASource, loop: SVGALoopMode = .forever) {
         self.source = source
         self.loop   = loop
     }
 
     // MARK: - UIViewRepresentable
 
-    func makeUIView(context: Context) -> SwiftSVGAPlayerView {
+    public func makeUIView(context: Context) -> SwiftSVGAPlayerView {
         let view = SwiftSVGAPlayerView()
         view.contentMode = contentMode
         return view
     }
 
-    func updateUIView(_ uiView: SwiftSVGAPlayerView, context: Context) {
+    public func updateUIView(_ uiView: SwiftSVGAPlayerView, context: Context) {
         uiView.contentMode  = contentMode
         uiView.isReversed   = isReversed
         uiView.isMuted      = isMuted
@@ -62,13 +62,13 @@ struct SVGAPlayerView: UIViewRepresentable {
         uiView.play(source, loop: loop)
     }
 
-    func makeCoordinator() -> Coordinator {
+    public func makeCoordinator() -> Coordinator {
         Coordinator()
     }
 
     // MARK: - Coordinator（记录上次 source，避免重复加载）
 
-    final class Coordinator {
+    public final class Coordinator {
         var lastSource: SVGASource? = nil
     }
 }
@@ -76,7 +76,7 @@ struct SVGAPlayerView: UIViewRepresentable {
 // MARK: - Modifiers
 
 @available(iOS 13.0, *)
-extension SVGAPlayerView {
+public extension SVGAPlayerView {
 
     /// 反向播放
     func svgaReversed(_ reversed: Bool) -> SVGAPlayerView {
