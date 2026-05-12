@@ -328,6 +328,8 @@ final class SVGABinaryDecoder {
         _ = t // suppress warning
     }
 
+}
+
 // MARK: - UIColor hex helper
 
 extension UIColor {
