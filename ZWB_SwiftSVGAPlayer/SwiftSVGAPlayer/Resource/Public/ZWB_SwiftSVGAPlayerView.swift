@@ -4,40 +4,40 @@ import UIKit
 import QuartzCore
 
 /// SVGA 播放器视图
-final class SwiftSVGAPlayerView: UIView {
+public final class SwiftSVGAPlayerView: UIView {
 
     // MARK: - Public Properties
 
-    var isMuted: Bool = false {
+    public var isMuted: Bool = false {
         didSet { audioController.isMuted = isMuted }
     }
-    var isReversed: Bool = false {
+    public var isReversed: Bool = false {
         didSet {
             playbackController.isReversed = isReversed
             // 播放中途切换方向：立即从当前帧反向继续，不重置帧
         }
     }
-    var isDebugLogEnabled: Bool = false {
+    public var isDebugLogEnabled: Bool = false {
         didSet { SVGALogger.shared.logLevel = isDebugLogEnabled ? .debug : .warning }
     }
-    var clearsAfterStop: Bool = false
+    public var clearsAfterStop: Bool = false
 
     // MARK: - Readonly State
 
-    private(set) var state: SVGAPlaybackState = .idle
-    private(set) var currentFrame: Int = 0
-    private(set) var totalFrames: Int = 0
-    var progress: Double {
+    public private(set) var state: SVGAPlaybackState = .idle
+    public private(set) var currentFrame: Int = 0
+    public private(set) var totalFrames: Int = 0
+    public var progress: Double {
         guard totalFrames > 0 else { return 0 }
         return Double(currentFrame) / Double(totalFrames - 1)
     }
 
     // MARK: - Callbacks
 
-    var onStateChange: ((SVGAPlaybackState) -> Void)?
-    var onFrameChange: ((_ frame: Int, _ progress: Double) -> Void)?
-    var onCompletion: (() -> Void)?
-    var onError: ((SVGAError) -> Void)?
+    public var onStateChange: ((SVGAPlaybackState) -> Void)?
+    public var onFrameChange: ((_ frame: Int, _ progress: Double) -> Void)?
+    public var onCompletion: (() -> Void)?
+    public var onError: ((SVGAError) -> Void)?
 
     // MARK: - Private
 
@@ -54,13 +54,19 @@ final class SwiftSVGAPlayerView: UIView {
 
     // MARK: - Init
 
-    init(frame: CGRect = .zero, parser: SVGAParsing = SVGAParser.shared) {
+    public override init(frame: CGRect = .zero) {
+        self.parser = SVGAParser.shared
+        super.init(frame: frame)
+        setup()
+    }
+
+    init(frame: CGRect = .zero, parser: SVGAParsing) {
         self.parser = parser
         super.init(frame: frame)
         setup()
     }
 
-    required init?(coder: NSCoder) {
+    public required init?(coder: NSCoder) {
         self.parser = SVGAParser.shared
         super.init(coder: coder)
         setup()
@@ -75,14 +81,14 @@ final class SwiftSVGAPlayerView: UIView {
         setupPlaybackController()
     }
 
-    override func layoutSubviews() {
+    public override func layoutSubviews() {
         super.layoutSubviews()
         updateRenderLayerFrame()
     }
 
     // MARK: - Layout
 
-    override var intrinsicContentSize: CGSize {
+    public override var intrinsicContentSize: CGSize {
         return super.intrinsicContentSize
     }
 
@@ -126,7 +132,7 @@ final class SwiftSVGAPlayerView: UIView {
     // MARK: - Load
 
     @discardableResult
-    func load(_ source: SVGASource) async throws -> SVGAVideo {
+    public func load(_ source: SVGASource) async throws -> SVGAVideo {
         loadTask?.cancel()
         setState(.loading)
         currentSource = source
@@ -157,16 +163,16 @@ final class SwiftSVGAPlayerView: UIView {
 
     // MARK: - Play
 
-    func play() { play(loop: pendingLoopMode) }
+    public func play() { play(loop: pendingLoopMode) }
 
-    func play(loop: SVGALoopMode) {
+    public func play(loop: SVGALoopMode) {
         pendingLoopMode = loop
         guard let video = currentVideo else { return }
         let range = (pendingRange ?? (0..<video.playbackFrames)).clamped(toTotalFrames: video.playbackFrames)
         startPlayback(video: video, range: range, loop: loop)
     }
 
-    func play(_ source: SVGASource, loop: SVGALoopMode = .forever) {
+    public func play(_ source: SVGASource, loop: SVGALoopMode = .forever) {
         pendingLoopMode = loop
         loadTask = Task { [weak self] in
             guard let self = self else { return }
@@ -174,7 +180,7 @@ final class SwiftSVGAPlayerView: UIView {
         }
     }
 
-    func play(range: Range<Int>, loop: SVGALoopMode) {
+    public func play(range: Range<Int>, loop: SVGALoopMode) {
         pendingRange    = range
         pendingLoopMode = loop
         guard let video = currentVideo else { return }
@@ -183,16 +189,16 @@ final class SwiftSVGAPlayerView: UIView {
 
     // MARK: - Control
 
-    func pause()  { playbackController.pause();  audioController.pause() }
-    func resume() { playbackController.resume(); audioController.resume() }
+    public func pause()  { playbackController.pause();  audioController.pause() }
+    public func resume() { playbackController.resume(); audioController.resume() }
 
-    func stop(then scene: SVGAStopScene = .clearLayers) {
+    public func stop(then scene: SVGAStopScene = .clearLayers) {
         playbackController.stop()
         audioController.stop()
         applyStopScene(scene)
     }
 
-    func seek(toFrame frame: Int) {
+    public func seek(toFrame frame: Int) {
         guard totalFrames > 0 else { return }
         let clampedFrame = Swift.max(0, Swift.min(frame, totalFrames - 1))
         playbackController.seek(toFrame: clampedFrame)
@@ -202,12 +208,12 @@ final class SwiftSVGAPlayerView: UIView {
         onFrameChange?(clampedFrame, progress)
     }
 
-    func seek(progress: Double) {
+    public func seek(progress: Double) {
         guard totalFrames > 0 else { return }
         seek(toFrame: Int(Double(totalFrames - 1) * Swift.max(0, Swift.min(progress, 1))))
     }
 
-    func clear() {
+    public func clear() {
         loadTask?.cancel(); loadTask = nil
         playbackController.stop()
         audioController.stop()
@@ -219,11 +225,11 @@ final class SwiftSVGAPlayerView: UIView {
 
     // MARK: - Dynamic Content
 
-    func setImage(_ image: UIImage?, forKey key: String) {
+    public func setImage(_ image: UIImage?, forKey key: String) {
         renderLayer.setDynamicItem(image.map { .image($0) }, forKey: key)
     }
 
-    func setImageURL(_ url: URL?, forKey key: String) {
+    public func setImageURL(_ url: URL?, forKey key: String) {
         guard let url = url else { renderLayer.setDynamicItem(nil, forKey: key); return }
         Task { [weak self] in
             guard let self = self else { return }
@@ -238,15 +244,15 @@ final class SwiftSVGAPlayerView: UIView {
         }
     }
 
-    func setText(_ text: NSAttributedString?, forKey key: String) {
+    public func setText(_ text: NSAttributedString?, forKey key: String) {
         renderLayer.setDynamicItem(text.map { .text($0) }, forKey: key)
     }
 
-    func setHidden(_ hidden: Bool, forKey key: String) {
+    public func setHidden(_ hidden: Bool, forKey key: String) {
         renderLayer.setDynamicItem(hidden ? .hidden : nil, forKey: key)
     }
 
-    func setDrawing(_ drawing: SVGADrawingBlock?, forKey key: String) {
+    public func setDrawing(_ drawing: SVGADrawingBlock?, forKey key: String) {
         renderLayer.setDynamicItem(drawing.map { .drawing($0) }, forKey: key)
     }
 

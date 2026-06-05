@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.0.3] - 2026-06-05
+
+### 性能优化
+- 内存缓存淘汰维度由「个数」改为「内存成本（字节）」：基于 `NSCache.totalCostLimit`，按解码位图字节数计 cost，避免列表中 SVGA 数量略超阈值时反复重解码或内存暴涨
+- 默认内存上限自适应：物理内存的 1/8，封顶 256MB，兜底 32MB
+- 收到系统内存警告时自动清空内存缓存，降低被系统终止的风险
+
+### 新增
+- `SVGAPreloader` 公开预热 API：支持在列表数据加载完成时提前异步解析 SVGA，展示时直接命中内存缓存秒开
+  - `SVGAPreloader.preload(_:maxConcurrent:)`
+  - `SVGAPreloader.preload(urls:maxConcurrent:)`
+  - `SVGAPreloader.preload(urlStrings:maxConcurrent:)`
+  - 内置并发上限控制（默认 3），复用解析防重与多级缓存
+- `SVGAMemoryCache` 公开缓存配置：`costLimit`（成本上限，字节）、`countLimit`（个数上限，0 表示不限）
+- `SVGAVideo.estimatedMemoryCost`：估算单个动画的位图内存占用
+
+### 修复
+- 统一 SPM 与 CocoaPods 源码：`Package.swift` 改为指向 `Sources/SwiftSVGAPlayer`，与 Pod 共用同一份权威源码，修复此前 SPM 分发缺失 Public 类型的问题
+
+
 ## [1.0.2] - 2026-05-12
 
 - 新增默认有效播放帧数计算，自动排除尾部连续空帧/哨兵帧

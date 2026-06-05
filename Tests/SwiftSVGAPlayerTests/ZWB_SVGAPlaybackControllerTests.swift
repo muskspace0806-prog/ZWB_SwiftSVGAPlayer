@@ -3,6 +3,7 @@
 import XCTest
 @testable import SwiftSVGAPlayer
 
+@MainActor
 final class SVGAPlaybackControllerTests: XCTestCase {
 
     var controller: SVGAPlaybackController!

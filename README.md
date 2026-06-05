@@ -51,7 +51,7 @@
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer.git", from: "1.0.2")
+    .package(url: "https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer.git", from: "1.0.3")
 ]
 ```
 
@@ -60,7 +60,7 @@ dependencies: [
 ### CocoaPods
 
 ```ruby
-pod 'ZWB_SwiftSVGAPlayer', '~> 1.0.2'
+pod 'ZWB_SwiftSVGAPlayer', '~> 1.0.3'
 ```
 
 ---
@@ -208,6 +208,38 @@ SVGAMemoryCache.shared.removeAllVideos()
 SVGADiskCache.shared.removeAll()
 ```
 
+### 预热 / 预解析（1.0.3）
+
+在列表数据加载完成后提前异步解析 SVGA，解析结果写入内存与磁盘缓存。
+之后 cell 上调用 `play(_:)` 会直接命中内存缓存，避免滚动时同步解码导致的掉帧。
+
+```swift
+// 数据回来后预热（自动并发，默认并发数 3）
+Task {
+    await SVGAPreloader.preload(urlStrings: models.map { $0.svgaUrl })
+}
+
+// 也可直接传 URL 或 SVGASource
+await SVGAPreloader.preload(urls: urls, maxConcurrent: 4)
+await SVGAPreloader.preload([.url(url1), .named("gift")])
+```
+
+> 说明：预热复用全局解析器，已缓存的资源会直接跳过；同一资源并发请求会自动去重。
+
+### 缓存配置（1.0.3）
+
+内存缓存默认按「内存成本（字节）」淘汰，而非按个数。
+默认上限为物理内存的 1/8（封顶 256MB），收到系统内存警告时自动清空。
+列表中 SVGA 数量较多时，无需担心「个数超过阈值」导致反复重解码。
+
+```swift
+// 自定义内存成本上限（字节）。例如限制为 128MB
+SVGAMemoryCache.shared.costLimit = 128 * 1024 * 1024
+
+// 如需按个数限制可设置 countLimit；0 表示不按个数限制（默认）
+SVGAMemoryCache.shared.countLimit = 0
+```
+
 ### 自定义下载器
 
 ```swift
@@ -247,6 +279,8 @@ let player = SwiftSVGAPlayerView(parser: parser)
 | Loading de-duplication | ✅ |
 | Memory cache | ✅ |
 | Disk data cache | ✅ |
+| Memory cost-based eviction | ✅ |
+| Preload / 预热 | ✅ |
 | Audio 帧同步 | ✅ |
 | SwiftUI wrapper | ✅ |
 | CocoaPods | ✅ |

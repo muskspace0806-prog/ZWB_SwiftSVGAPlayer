@@ -16,7 +16,7 @@ import SwiftUI
 ///     .onSVGAComplete { print("done") }
 /// ```
 @available(iOS 13.0, *)
-struct SVGAPlayerView: UIViewRepresentable {
+public struct SVGAPlayerView: UIViewRepresentable {
 
     // MARK: - Configuration
 
@@ -24,7 +24,7 @@ struct SVGAPlayerView: UIViewRepresentable {
     private let loop: SVGALoopMode
     private var isReversed: Bool = false
     private var isMuted: Bool = false
-    private var svgaContentMode: UIView.ContentMode = .scaleAspectFit
+    private var contentMode: UIView.ContentMode = .scaleAspectFit
     private var onStateChange: ((SVGAPlaybackState) -> Void)? = nil
     private var onFrameChange: ((Int, Double) -> Void)? = nil
     private var onComplete: (() -> Void)? = nil
@@ -32,23 +32,23 @@ struct SVGAPlayerView: UIViewRepresentable {
 
     // MARK: - Init
 
-    init(source: SVGASource, loop: SVGALoopMode = .forever) {
+    public init(source: SVGASource, loop: SVGALoopMode = .forever) {
         self.source = source
         self.loop   = loop
     }
 
     // MARK: - UIViewRepresentable
 
-    func makeUIView(context: Context) -> SwiftSVGAPlayerView {
+    public func makeUIView(context: Context) -> SwiftSVGAPlayerView {
         let view = SwiftSVGAPlayerView()
-        view.contentMode = svgaContentMode
+        view.contentMode = contentMode
         return view
     }
 
-    func updateUIView(_ uiView: SwiftSVGAPlayerView, context: Context) {
-        uiView.contentMode   = svgaContentMode
-        uiView.isReversed    = isReversed
-        uiView.isMuted       = isMuted
+    public func updateUIView(_ uiView: SwiftSVGAPlayerView, context: Context) {
+        uiView.contentMode  = contentMode
+        uiView.isReversed   = isReversed
+        uiView.isMuted      = isMuted
         uiView.onStateChange = onStateChange
         uiView.onFrameChange = onFrameChange
         uiView.onCompletion  = onComplete
@@ -58,16 +58,17 @@ struct SVGAPlayerView: UIViewRepresentable {
         let coordinator = context.coordinator
         guard coordinator.lastSource != source else { return }
         coordinator.lastSource = source
+
         uiView.play(source, loop: loop)
     }
 
-    func makeCoordinator() -> Coordinator {
+    public func makeCoordinator() -> Coordinator {
         Coordinator()
     }
 
-    // MARK: - Coordinator
+    // MARK: - Coordinator（记录上次 source，避免重复加载）
 
-    final class Coordinator {
+    public final class Coordinator {
         var lastSource: SVGASource? = nil
     }
 }
@@ -75,32 +76,39 @@ struct SVGAPlayerView: UIViewRepresentable {
 // MARK: - Modifiers
 
 @available(iOS 13.0, *)
-extension SVGAPlayerView {
+public extension SVGAPlayerView {
 
+    /// 反向播放
     func svgaReversed(_ reversed: Bool) -> SVGAPlayerView {
         var copy = self; copy.isReversed = reversed; return copy
     }
 
+    /// 静音
     func svgaMuted(_ muted: Bool) -> SVGAPlayerView {
         var copy = self; copy.isMuted = muted; return copy
     }
 
+    /// 内容缩放模式（默认 scaleAspectFit）
     func svgaContentMode(_ mode: UIView.ContentMode) -> SVGAPlayerView {
-        var copy = self; copy.svgaContentMode = mode; return copy
+        var copy = self; copy.contentMode = mode; return copy
     }
 
+    /// 状态变化回调
     func onSVGAStateChange(_ handler: @escaping (SVGAPlaybackState) -> Void) -> SVGAPlayerView {
         var copy = self; copy.onStateChange = handler; return copy
     }
 
+    /// 帧变化回调
     func onSVGAFrameChange(_ handler: @escaping (Int, Double) -> Void) -> SVGAPlayerView {
         var copy = self; copy.onFrameChange = handler; return copy
     }
 
+    /// 播放完成回调
     func onSVGAComplete(_ handler: @escaping () -> Void) -> SVGAPlayerView {
         var copy = self; copy.onComplete = handler; return copy
     }
 
+    /// 错误回调
     func onSVGAError(_ handler: @escaping (SVGAError) -> Void) -> SVGAPlayerView {
         var copy = self; copy.onError = handler; return copy
     }

@@ -67,3 +67,32 @@ extension SVGAVideo {
         return Swift.max(1, Swift.min(declaredFrames, lastRenderableIndex + 1))
     }
 }
+
+import UIKit
+
+// MARK: - 内存成本估算（1.0.3）
+extension SVGAVideo {
+    /// 估算该视频占用的内存成本（字节），用于 NSCache 的 cost 计量。
+    ///
+    /// SVGA 解析后会把所有图片解码成位图（UIImage）常驻内存，
+    /// 真正吃内存的是这些位图，因此成本按所有图片的 `宽 × 高 × 4 字节` 累加估算。
+    /// 优先使用 cgImage 的实际 `bytesPerRow × height`，更贴近真实占用。
+    public var estimatedMemoryCost: Int {
+        var total = 0
+        for (_, resource) in images {
+            let image = resource.image
+            if let cg = image.cgImage {
+                // 实际位图字节数：每行字节数 × 像素高度
+                total += cg.bytesPerRow * cg.height
+            } else {
+                // 退化估算：点尺寸 × scale² × 4 通道
+                let scale = image.scale
+                let pixelW = image.size.width * scale
+                let pixelH = image.size.height * scale
+                total += Int(pixelW * pixelH * 4)
+            }
+        }
+        // 至少计 1 字节，避免 cost 为 0 时 NSCache 不计量
+        return Swift.max(total, 1)
+    }
+}

@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'ZWB_SwiftSVGAPlayer'
-  s.version          = '1.0.2'
+  s.version          = '1.0.3'
   s.summary          = 'A pure Swift SVGA animation player for iOS 13+'
   s.description      = <<-DESC
     SwiftSVGAPlayer is a pure Swift implementation of an SVGA animation player.
