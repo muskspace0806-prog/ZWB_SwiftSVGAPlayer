@@ -19,6 +19,7 @@ final class SVGASpriteLayer: CALayer {
         super.init()
         isGeometryFlipped = false
         masksToBounds     = false
+        actions = SVGASpriteLayer.disabledActions
         // 覆盖整个画布，子层用绝对坐标定位
         frame = CGRect(origin: .zero, size: canvasSize)
         setupSublayers(sprite: sprite, image: image)
@@ -97,4 +98,13 @@ final class SVGASpriteLayer: CALayer {
     func clearDynamic() {
         bitmapLayer?.clearDynamic()
     }
+    
+    private static let disabledActions: [String: CAAction] = [
+        "bounds": NSNull(),
+        "position": NSNull(),
+        "frame": NSNull(),
+        "transform": NSNull(),
+        "opacity": NSNull(),
+        "hidden": NSNull()
+    ]
 }

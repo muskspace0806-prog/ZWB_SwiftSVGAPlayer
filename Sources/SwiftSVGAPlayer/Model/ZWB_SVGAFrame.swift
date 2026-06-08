@@ -14,8 +14,8 @@ public struct SVGAFrame {
     public let clipPath: CGPath?
     /// 矢量形状列表
     public let shapes: [SVGAShape]
-    /// Bitmap layer 的校正位置，兼容旧版 SVGAPlayer 的 nx/ny 渲染行为。
-    let bitmapPosition: CGPoint
+    /// Bitmap transform 后的外接矩形最小点，兼容旧版 SVGAPlayer 的 nx/ny 渲染行为。
+    let bitmapTransformedOrigin: CGPoint
 
     public init(
         alpha: CGFloat = 1.0,
@@ -29,7 +29,7 @@ public struct SVGAFrame {
         self.transform = transform
         self.clipPath = clipPath
         self.shapes = shapes
-        self.bitmapPosition = SVGAFrame.makeBitmapPosition(layout: layout, transform: transform)
+        self.bitmapTransformedOrigin = SVGAFrame.makeBitmapTransformedOrigin(layout: layout, transform: transform)
     }
 }
 
@@ -45,33 +45,19 @@ extension SVGAFrame {
         return layout.width > 0 && layout.height > 0
     }
     
-    private static func makeBitmapPosition(layout: SVGALayout, transform: CGAffineTransform) -> CGPoint {
-        let absoluteMinPoint = transformedMinPoint(
+    private static func makeBitmapTransformedOrigin(layout: SVGALayout, transform: CGAffineTransform) -> CGPoint {
+        let minPoint = transformedMinPoint(
             x: layout.x,
             y: layout.y,
             width: layout.width,
             height: layout.height,
             transform: transform
         )
-        let localMinPoint = transformedMinPoint(
-            x: 0,
-            y: 0,
-            width: layout.width,
-            height: layout.height,
-            transform: transform
-        )
         
-        guard absoluteMinPoint.x.isFinite,
-              absoluteMinPoint.y.isFinite,
-              localMinPoint.x.isFinite,
-              localMinPoint.y.isFinite else {
+        guard minPoint.x.isFinite, minPoint.y.isFinite else {
             return CGPoint(x: layout.x, y: layout.y)
         }
-        
-        return CGPoint(
-            x: absoluteMinPoint.x - localMinPoint.x,
-            y: absoluteMinPoint.y - localMinPoint.y
-        )
+        return minPoint
     }
     
     private static func transformedMinPoint(

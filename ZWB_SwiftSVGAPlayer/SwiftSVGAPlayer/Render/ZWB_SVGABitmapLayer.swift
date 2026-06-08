@@ -5,7 +5,7 @@ import QuartzCore
 
 /// 渲染单个 bitmap sprite 的 CALayer
 /// 坐标系：frame 由父层（SVGASpriteLayer，覆盖整个画布）决定
-/// transform 从左上角原点（anchorPoint = 0,0）应用，与 SVGA 规范一致
+/// transform 使用默认中心锚点应用，并按旧版 SVGAPlayer 的 nx/ny 修正位置
 final class SVGABitmapLayer: CALayer {
 
     private var dynamicImage: UIImage?
@@ -19,11 +19,11 @@ final class SVGABitmapLayer: CALayer {
 
     override init() {
         super.init()
-        // anchorPoint = (0,0)：transform 从左上角原点应用，与 SVGA 坐标系一致
-        anchorPoint = CGPoint(x: 0, y: 0)
+        anchorPoint = CGPoint(x: 0.5, y: 0.5)
         isGeometryFlipped = false
-        contentsGravity = .resize
+        contentsGravity = .resizeAspect
         masksToBounds = false
+        actions = SVGABitmapLayer.disabledActions
     }
 
     override init(layer: Any) { super.init(layer: layer) }
@@ -52,14 +52,16 @@ final class SVGABitmapLayer: CALayer {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
 
-        // 使用旧版 SVGAPlayer 的 nx/ny 等价修正，避免带 transform 的素材从偏移位置闪入。
-        bounds   = CGRect(x: 0, y: 0, width: layout.width, height: layout.height)
-        position = frame.bitmapPosition
-
-        // 应用 SVGA transform（已是相对左上角的矩阵）
-        self.transform = frame.transform != .identity
+        transform = CATransform3DIdentity
+        self.frame = CGRect(x: layout.x, y: layout.y, width: layout.width, height: layout.height)
+        transform = frame.transform != .identity
             ? CATransform3DMakeAffineTransform(frame.transform)
             : CATransform3DIdentity
+        
+        // 复刻旧版 SVGAPlayer 的 nx/ny 修正：transform 后把外接矩形原点拉回素材定义的最小点。
+        let offsetX = self.frame.origin.x - frame.bitmapTransformedOrigin.x
+        let offsetY = self.frame.origin.y - frame.bitmapTransformedOrigin.y
+        position = CGPoint(x: position.x - offsetX, y: position.y - offsetY)
 
         // 裁剪路径
         if let clipPath = frame.clipPath {
@@ -128,6 +130,16 @@ final class SVGABitmapLayer: CALayer {
         isDynamicHidden  = false
         transform        = CATransform3DIdentity
     }
+    
+    private static let disabledActions: [String: CAAction] = [
+        "bounds": NSNull(),
+        "position": NSNull(),
+        "frame": NSNull(),
+        "transform": NSNull(),
+        "opacity": NSNull(),
+        "hidden": NSNull(),
+        "contents": NSNull()
+    ]
 }
 
 // MARK: - SVGADrawingLayer

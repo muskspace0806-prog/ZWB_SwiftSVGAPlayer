@@ -28,7 +28,7 @@
 - ✅ Vector shape 渲染（完整 SVG path：M/L/H/V/C/S/Q/T/A/Z，含椭圆弧）
 - ✅ Matte layer（遮罩，matteKey 对应 sprite 作为 CALayer mask）
 - ✅ Alpha / transform / layout / clipPath
-- ✅ 兼容旧版 SVGAPlayer bitmap `nx/ny` 定位修正，减少带 transform 素材的起始位置偏移
+- ✅ 兼容旧版 SVGAPlayer bitmap `nx/ny` 定位修正，减少带 transform 素材的起始位置偏移和首帧补间
 - ✅ Loop once / count / forever
 - ✅ Play / pause / resume / stop / seek
 - ✅ Reverse playback（反向播放）
@@ -52,7 +52,7 @@
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer.git", from: "1.0.4")
+    .package(url: "https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer.git", from: "1.0.5")
 ]
 ```
 
@@ -61,7 +61,7 @@ dependencies: [
 ### CocoaPods
 
 ```ruby
-pod 'ZWB_SwiftSVGAPlayer', '~> 1.0.4'
+pod 'ZWB_SwiftSVGAPlayer', '~> 1.0.5'
 ```
 
 ---

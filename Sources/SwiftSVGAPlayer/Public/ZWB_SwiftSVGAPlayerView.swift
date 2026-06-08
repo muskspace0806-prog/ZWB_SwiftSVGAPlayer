@@ -262,6 +262,10 @@ public final class SwiftSVGAPlayerView: UIView {
         playbackController.loopMode   = loop
         playbackController.isReversed = isReversed   // 必须在 configure 之前设置，configure 用它决定起始帧
         playbackController.configure(totalFrames: video.playbackFrames, fps: video.clampedFPS, range: range)
+        let startFrame = isReversed ? range.upperBound - 1 : range.lowerBound
+        currentFrame = startFrame
+        renderLayer.step(to: startFrame)
+        audioController.seek(toFrame: startFrame)
         playbackController.startDriver(fps: video.clampedFPS)
     }
 

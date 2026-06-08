@@ -20,6 +20,7 @@ final class SVGARenderLayer: CALayer {
         super.init()
         isGeometryFlipped = false
         masksToBounds     = true   // 内容限制在 renderLayer frame 内，不超出 view
+        actions = SVGARenderLayer.disabledActions
     }
 
     override init(layer: Any) { super.init(layer: layer) }
@@ -117,4 +118,13 @@ final class SVGARenderLayer: CALayer {
         dynamicItems.removeAll()
         spriteLayers.forEach { $0.clearDynamic() }
     }
+    
+    private static let disabledActions: [String: CAAction] = [
+        "bounds": NSNull(),
+        "position": NSNull(),
+        "frame": NSNull(),
+        "transform": NSNull(),
+        "opacity": NSNull(),
+        "hidden": NSNull()
+    ]
 }

@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.5] - 2026-06-08
+
+### 修复
+- Bitmap 渲染改为完全对齐旧版 SVGAPlayer 的中心锚点 `nx/ny` 修正流程，避免带 transform 素材首帧从对角线偏移位置补间到目标点
+- 播放启动前立即渲染起始帧，避免首个 display link tick 前从 layer 默认位置闪入
+- 关闭核心渲染 layer 的隐式动画 action，避免 cell 刷新或 UIKit 动画事务触发 position/transform 自动补间
+
+### 发布
+- CocoaPods 版本升级到 `1.0.5`
+- README 同步更新 CocoaPods 与 SPM 集成示例
+
 ## [1.0.4] - 2026-06-08
 
 ### 修复
