@@ -52,9 +52,9 @@ final class SVGABitmapLayer: CALayer {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
 
-        // anchorPoint = (0,0)，所以 position = layout 左上角
+        // 使用旧版 SVGAPlayer 的 nx/ny 等价修正，避免带 transform 的素材从偏移位置闪入。
         bounds   = CGRect(x: 0, y: 0, width: layout.width, height: layout.height)
-        position = CGPoint(x: layout.x, y: layout.y)
+        position = frame.bitmapPosition
 
         // 应用 SVGA transform（已是相对左上角的矩阵）
         self.transform = frame.transform != .identity

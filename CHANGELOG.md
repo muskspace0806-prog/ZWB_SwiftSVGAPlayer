@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.4] - 2026-06-08
+
+### 修复
+- 兼容旧版 SVGAPlayer 的 bitmap `nx/ny` 定位修正：播放带 transform 的 SVGA 素材时，减少首帧从右上角等偏移位置闪入的问题
+
+### 发布
+- CocoaPods 版本升级到 `1.0.4`
+- README 同步更新 CocoaPods 与 SPM 集成示例
+
 ## [1.0.3] - 2026-06-05
 
 ### 性能优化
