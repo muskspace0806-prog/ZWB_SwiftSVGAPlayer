@@ -240,7 +240,7 @@ public final class SwiftSVGAPlayerView: UIView {
             do {
                 let (data, _) = try await URLSession.shared.data(from: url)
                 if let image = UIImage.svga_decode(from: data) {
-                    self.renderLayer.setDynamicItem(.image(image), forKey: key)
+                    self.setDynamicItemOnMain(.image(image), forKey: key)
                 }
             } catch {
                 svgaLogWarning("Failed to load dynamic image URL: \(url)")
@@ -255,7 +255,7 @@ public final class SwiftSVGAPlayerView: UIView {
             do {
                 let (data, _) = try await URLSession.shared.data(from: url)
                 if let image = UIImage.svga_decode(from: data) {
-                    self.renderLayer.setDynamicItem(.imageWithOptions(image, options), forKey: key)
+                    self.setDynamicItemOnMain(.imageWithOptions(image, options), forKey: key)
                 }
             } catch {
                 svgaLogWarning("Failed to load dynamic image URL: \(url)")
@@ -304,6 +304,16 @@ public final class SwiftSVGAPlayerView: UIView {
         guard state != newState else { return }
         state = newState
         onStateChange?(newState)
+    }
+
+    private func setDynamicItemOnMain(_ item: SVGADynamicItem, forKey key: String) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.renderLayer.setDynamicItem(item, forKey: key)
+            if self.totalFrames > 0 {
+                self.renderLayer.step(to: self.currentFrame)
+            }
+        }
     }
 
     private func applyStopScene(_ scene: SVGAStopScene) {

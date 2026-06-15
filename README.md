@@ -52,7 +52,7 @@
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer.git", from: "1.0.6")
+    .package(url: "https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer.git", from: "1.0.7")
 ]
 ```
 
@@ -61,7 +61,7 @@ dependencies: [
 ### CocoaPods
 
 ```ruby
-pod 'ZWB_SwiftSVGAPlayer', '~> 1.0.6'
+pod 'ZWB_SwiftSVGAPlayer', '~> 1.0.7'
 ```
 
 ---
