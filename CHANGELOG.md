@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.6] - 2026-06-15
+
+### 新增
+- 新增 `SVGADynamicImageOptions`，支持动态图片按 `.aspectFit` / `.aspectFill` / `.scaleToFill` 渲染
+- 新增动态图片圆角能力：`.fixed(_:)` 固定圆角与 `.circle` 自动圆形裁剪
+- `SwiftSVGAPlayerView` 新增 `setImage(_:forKey:options:)` 与 `setImageURL(_:forKey:options:)` 重载，旧 API 保持兼容
+
+### 发布
+- CocoaPods 版本升级到 `1.0.6`
+- README 同步更新 CocoaPods、SPM 与动态头像圆形裁剪示例
+
 ## [1.0.5] - 2026-06-08
 
 ### 修复

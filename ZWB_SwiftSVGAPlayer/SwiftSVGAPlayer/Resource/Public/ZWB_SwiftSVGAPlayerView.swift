@@ -229,6 +229,10 @@ public final class SwiftSVGAPlayerView: UIView {
         renderLayer.setDynamicItem(image.map { .image($0) }, forKey: key)
     }
 
+    public func setImage(_ image: UIImage?, forKey key: String, options: SVGADynamicImageOptions) {
+        renderLayer.setDynamicItem(image.map { .imageWithOptions($0, options) }, forKey: key)
+    }
+
     public func setImageURL(_ url: URL?, forKey key: String) {
         guard let url = url else { renderLayer.setDynamicItem(nil, forKey: key); return }
         Task { [weak self] in
@@ -237,6 +241,21 @@ public final class SwiftSVGAPlayerView: UIView {
                 let (data, _) = try await URLSession.shared.data(from: url)
                 if let image = UIImage.svga_decode(from: data) {
                     self.renderLayer.setDynamicItem(.image(image), forKey: key)
+                }
+            } catch {
+                svgaLogWarning("Failed to load dynamic image URL: \(url)")
+            }
+        }
+    }
+
+    public func setImageURL(_ url: URL?, forKey key: String, options: SVGADynamicImageOptions) {
+        guard let url = url else { renderLayer.setDynamicItem(nil, forKey: key); return }
+        Task { [weak self] in
+            guard let self = self else { return }
+            do {
+                let (data, _) = try await URLSession.shared.data(from: url)
+                if let image = UIImage.svga_decode(from: data) {
+                    self.renderLayer.setDynamicItem(.imageWithOptions(image, options), forKey: key)
                 }
             } catch {
                 svgaLogWarning("Failed to load dynamic image URL: \(url)")

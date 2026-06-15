@@ -10,6 +10,7 @@ final class SVGABitmapLayer: CALayer {
 
     private var dynamicImage: UIImage?
     private var originalImage: UIImage?
+    private var dynamicImageOptions: SVGADynamicImageOptions?
     private var textLayer: CATextLayer?
     private var drawingBlock: SVGADrawingBlock?
     private var drawingLayer: CALayer?
@@ -71,14 +72,16 @@ final class SVGABitmapLayer: CALayer {
         } else {
             self.mask = nil
         }
+        applyDynamicImageOptions()
 
         CATransaction.commit()
     }
 
     // MARK: - Dynamic Content
 
-    func setDynamicImage(_ image: UIImage?) {
+    func setDynamicImage(_ image: UIImage?, options: SVGADynamicImageOptions? = nil) {
         dynamicImage = image
+        dynamicImageOptions = image == nil ? nil : options
         contents = (image ?? originalImage)?.cgImage
     }
 
@@ -129,6 +132,38 @@ final class SVGABitmapLayer: CALayer {
         drawingBlock     = nil
         isDynamicHidden  = false
         transform        = CATransform3DIdentity
+        dynamicImageOptions = nil
+        contentsGravity = .resizeAspect
+        cornerRadius = 0
+        masksToBounds = false
+    }
+
+    private func applyDynamicImageOptions() {
+        guard let options = dynamicImageOptions else {
+            contentsGravity = .resizeAspect
+            cornerRadius = 0
+            masksToBounds = false
+            return
+        }
+
+        switch options.contentMode {
+        case .aspectFit:
+            contentsGravity = .resizeAspect
+        case .aspectFill:
+            contentsGravity = .resizeAspectFill
+        case .scaleToFill:
+            contentsGravity = .resize
+        }
+
+        switch options.cornerRadius {
+        case .none:
+            cornerRadius = 0
+        case .fixed(let radius):
+            cornerRadius = max(0, radius)
+        case .circle:
+            cornerRadius = min(bounds.width, bounds.height) * 0.5
+        }
+        masksToBounds = options.clipsToBounds || cornerRadius > 0
     }
     
     private static let disabledActions: [String: CAAction] = [
@@ -138,6 +173,7 @@ final class SVGABitmapLayer: CALayer {
         "transform": NSNull(),
         "opacity": NSNull(),
         "hidden": NSNull(),
+        "cornerRadius": NSNull(),
         "contents": NSNull()
     ]
 }

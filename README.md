@@ -52,7 +52,7 @@
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer.git", from: "1.0.5")
+    .package(url: "https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer.git", from: "1.0.6")
 ]
 ```
 
@@ -61,7 +61,7 @@ dependencies: [
 ### CocoaPods
 
 ```ruby
-pod 'ZWB_SwiftSVGAPlayer', '~> 1.0.5'
+pod 'ZWB_SwiftSVGAPlayer', '~> 1.0.6'
 ```
 
 ---
@@ -175,6 +175,21 @@ player.setImage(UIImage(named: "avatar"), forKey: "avatar")
 
 // 远程图片（异步加载）
 player.setImageURL(URL(string: "https://..."), forKey: "avatar")
+
+// 远程头像：等比填充并按 SVGA 图层短边自动裁剪为圆形（1.0.6）
+player.setImageURL(
+    URL(string: "https://..."),
+    forKey: "avatar",
+    options: .circle()
+)
+
+// 自定义动态图片渲染：contentMode / 固定圆角 / 裁剪
+let imageOptions = SVGADynamicImageOptions(
+    contentMode: .aspectFill,
+    cornerRadius: .fixed(24),
+    clipsToBounds: true
+)
+player.setImage(UIImage(named: "avatar"), forKey: "avatar", options: imageOptions)
 
 // 富文本
 let attr = NSAttributedString(string: "Hello", attributes: [.foregroundColor: UIColor.red])
