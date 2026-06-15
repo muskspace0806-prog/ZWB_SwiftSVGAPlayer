@@ -34,7 +34,7 @@ final class SVGARenderLayer: CALayer {
            cur.size == video.size && cur.frames == video.frames {
             return
         }
-        clearLayers()
+        clearLayers(keepsDynamicItems: true)
         self.video    = video
         isConfigured  = true
 
@@ -106,12 +106,14 @@ final class SVGARenderLayer: CALayer {
 
     // MARK: - Clear
 
-    func clearLayers() {
+    func clearLayers(keepsDynamicItems: Bool = false) {
         spriteLayers.forEach { $0.removeFromSuperlayer() }
         spriteLayers.removeAll()
         video        = nil
         isConfigured = false
-        dynamicItems.removeAll()
+        if !keepsDynamicItems {
+            dynamicItems.removeAll()
+        }
     }
 
     func clearDynamicItems() {

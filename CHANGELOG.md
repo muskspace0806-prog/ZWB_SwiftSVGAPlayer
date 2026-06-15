@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.8] - 2026-06-15
+
+### 修复
+- 修复动态图片先于 `play(_:)` 设置时，SVGA 加载完成重建渲染图层会清空 `dynamicItems`，导致远程图片偶发不显示的问题
+- `configure(video:)` 重建 sprite layer 时保留已设置的动态内容；用户主动 `clear()` 时仍会清理动态图层状态
+
+### 文档
+- README 顶部新增 `中文 | English` 语言切换
+- 新增英文 README：`README_EN.md`
+- README 同步更新 CocoaPods 与 SPM 集成示例到 `1.0.8`
+
 ## [1.0.7] - 2026-06-15
 
 ### 修复

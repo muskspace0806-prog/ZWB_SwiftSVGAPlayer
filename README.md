@@ -6,6 +6,8 @@
 [![SPM](https://img.shields.io/badge/SPM-supported-brightgreen.svg)](Package.swift)
 [![CocoaPods](https://img.shields.io/badge/CocoaPods-supported-brightgreen.svg)](ZWB_SwiftSVGAPlayer.podspec)
 
+**中文 | [English](README_EN.md)**
+
 **SwiftSVGAPlayer** 是一个纯 Swift 实现的 SVGA 动画播放器，支持 iOS 13+，提供现代 Swift API 和 SwiftUI 支持。
 
 ---
@@ -52,7 +54,7 @@
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer.git", from: "1.0.7")
+    .package(url: "https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer.git", from: "1.0.8")
 ]
 ```
 
@@ -61,7 +63,7 @@ dependencies: [
 ### CocoaPods
 
 ```ruby
-pod 'ZWB_SwiftSVGAPlayer', '~> 1.0.7'
+pod 'ZWB_SwiftSVGAPlayer', '~> 1.0.8'
 ```
 
 ---
@@ -182,6 +184,10 @@ player.setImageURL(
     forKey: "avatar",
     options: .circle()
 )
+
+// 动态图片可先于 play 设置；1.0.8 起加载 SVGA 时会保留已设置的动态内容
+player.setImageURL(URL(string: "https://..."), forKey: "avatar", options: .circle())
+player.play(.named("gift"), loop: .forever)
 
 // 自定义动态图片渲染：contentMode / 固定圆角 / 裁剪
 let imageOptions = SVGADynamicImageOptions(
