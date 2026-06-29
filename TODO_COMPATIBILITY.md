@@ -56,4 +56,5 @@
 | test01.svga | zlib+protobuf | ✅ 正常播放 |
 | test02.svga | zlib+protobuf | ✅ 正常播放 |
 | test03.svga | zlib+protobuf | ✅ 正常播放 |
+| test05.svga | zlib+protobuf / pure vector shape | ✅ 正常播放 |
 | level_2_boom.svga | zlib+protobuf | ✅ 正常播放 |

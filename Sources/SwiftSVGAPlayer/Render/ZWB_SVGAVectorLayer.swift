@@ -41,36 +41,45 @@ final class SVGAVectorLayer: CALayer {
 
         for (i, shape) in shapes.enumerated() {
             shapeLayers[i].isHidden = false
-            applyShape(shape, to: shapeLayers[i])
+            applyShape(shape, frame: frame, to: shapeLayers[i])
         }
 
         CATransaction.commit()
     }
 
-    private func applyShape(_ shape: SVGAShape, to layer: CAShapeLayer) {
+    private func applyShape(_ shape: SVGAShape, frame: SVGAFrame, to layer: CAShapeLayer) {
         layer.frame = self.bounds
+        layer.transform = CATransform3DIdentity
 
+        var path: CGPath?
         switch shape.type {
         case .shape:
-            // pathData 已在 SVGABinaryDecoder.parseSVGPath 解析为 CGPath 并存入 SVGAFrame
-            // 但 SVGAShape 目前只存字符串，需要在这里解析
             if let d = shape.pathData {
-                layer.path = SVGAPathParser.parse(d)
-            } else {
-                layer.path = nil
+                path = SVGAPathParser.parse(d)
             }
         case .rect:
             if let r = shape.rectArgs {
-                layer.path = CGPath(roundedRect: r, cornerWidth: 0, cornerHeight: 0, transform: nil)
+                path = CGPath(
+                    roundedRect: r,
+                    cornerWidth: shape.rectCornerRadius,
+                    cornerHeight: shape.rectCornerRadius,
+                    transform: nil
+                )
             }
         case .ellipse:
             if let e = shape.ellipseArgs {
                 let rect = CGRect(x: e.cx - e.rx, y: e.cy - e.ry,
                                   width: e.rx * 2, height: e.ry * 2)
-                layer.path = CGPath(ellipseIn: rect, transform: nil)
+                path = CGPath(ellipseIn: rect, transform: nil)
             }
         case .keep:
             break
+        }
+
+        if var transformed = pathTransform(shape: shape, frame: frame) {
+            layer.path = path?.copy(using: &transformed)
+        } else {
+            layer.path = path
         }
 
         let style = shape.style
@@ -84,9 +93,15 @@ final class SVGAVectorLayer: CALayer {
             layer.lineDashPattern = style.lineDashPattern.map { NSNumber(value: Double($0)) }
             layer.lineDashPhase   = style.lineDashOffset
         }
-        layer.transform = shape.transform != .identity
-            ? CATransform3DMakeAffineTransform(shape.transform)
-            : CATransform3DIdentity
+    }
+
+    private func pathTransform(shape: SVGAShape, frame: SVGAFrame) -> CGAffineTransform? {
+        var transform = shape.transform.concatenating(frame.transform)
+        let layout = frame.layout
+        if layout.x != 0 || layout.y != 0 {
+            transform = transform.concatenating(CGAffineTransform(translationX: layout.x, y: layout.y))
+        }
+        return transform == .identity ? nil : transform
     }
 }
 

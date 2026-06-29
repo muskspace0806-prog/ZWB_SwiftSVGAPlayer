@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.0.9] - 2026-06-29
+
+### 修复
+- 修复 SVGA 2.x 官方 Protobuf vector shape 字段号兼容问题，支持 `shapeArgs` / `rectArgs` / `ellipseArgs` / `styles` / `transform` 官方字段布局
+- 修复纯 `.vector` 素材只显示在左上角或位置异常的问题，矢量路径现在会正确合成 frame transform 与 shape transform
+- 修复圆角矩形参数丢失问题，支持 `cornerRadius` 渲染
+- 支持官方 `RGBAColor` 样式消息解析，修复 vector shape fill / stroke 样式丢失导致不可见的问题
+
+### 文档
+- README / README_EN 同步更新 CocoaPods 与 SPM 集成示例到 `1.0.9`
+- 新增 `test05.svga` 纯 vector shape 兼容性验证素材
+
 ## [1.0.8] - 2026-06-15
 
 ### 修复

@@ -78,6 +78,7 @@ final class SVGABinaryDecoder {
                                           tx: CGFloat(t.tx), ty: CGFloat(t.ty))
         var type: SVGAShapeType = .shape
         var rectArgs: CGRect? = nil
+        var rectCornerRadius: CGFloat = 0
         var ellipseArgs: (cx: CGFloat, cy: CGFloat, rx: CGFloat, ry: CGFloat)? = nil
 
         switch proto.type {
@@ -87,6 +88,7 @@ final class SVGABinaryDecoder {
             if let r = proto.rectArgs {
                 rectArgs = CGRect(x: CGFloat(r.x), y: CGFloat(r.y),
                                   width: CGFloat(r.width), height: CGFloat(r.height))
+                rectCornerRadius = CGFloat(r.cornerRadius)
             }
         case .ellipse:
             type = .ellipse
@@ -99,7 +101,8 @@ final class SVGABinaryDecoder {
 
         return SVGAShape(type: type, style: style, transform: transform,
                          pathData: proto.pathArgs.isEmpty ? nil : proto.pathArgs,
-                         rectArgs: rectArgs, ellipseArgs: ellipseArgs)
+                         rectArgs: rectArgs, rectCornerRadius: rectCornerRadius,
+                         ellipseArgs: ellipseArgs)
     }
 
     private nonisolated func mapShapeStyle(_ proto: SVGAProtoShapeStyle) -> SVGAShapeStyle {

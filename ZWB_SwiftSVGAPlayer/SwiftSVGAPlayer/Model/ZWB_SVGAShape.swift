@@ -51,6 +51,8 @@ public struct SVGAShape {
     public let pathData: String?
     /// 矩形参数（type == .rect 时有效）
     public let rectArgs: CGRect?
+    /// 矩形圆角半径（type == .rect 时有效）
+    public let rectCornerRadius: CGFloat
     /// 椭圆参数（type == .ellipse 时有效）
     public let ellipseArgs: (cx: CGFloat, cy: CGFloat, rx: CGFloat, ry: CGFloat)?
 
@@ -60,6 +62,7 @@ public struct SVGAShape {
         transform: CGAffineTransform = .identity,
         pathData: String? = nil,
         rectArgs: CGRect? = nil,
+        rectCornerRadius: CGFloat = 0,
         ellipseArgs: (cx: CGFloat, cy: CGFloat, rx: CGFloat, ry: CGFloat)? = nil
     ) {
         self.type = type
@@ -67,6 +70,7 @@ public struct SVGAShape {
         self.transform = transform
         self.pathData = pathData
         self.rectArgs = rectArgs
+        self.rectCornerRadius = rectCornerRadius
         self.ellipseArgs = ellipseArgs
     }
 }

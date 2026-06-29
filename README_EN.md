@@ -29,7 +29,7 @@
 - Protobuf `movie.binary` parsing
 - JSON `movie.spec` parsing with shapes and clip paths
 - Bitmap sprite rendering with CoreAnimation
-- Vector shape rendering with SVG path support
+- Vector shape rendering with SVG path support, SVGA 2.x official shape fields, RGBA styles, and rounded rectangles
 - Matte layer support
 - Alpha, transform, layout, and clip path support
 - Loop once, count, or forever
@@ -51,7 +51,7 @@ Add the package in `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer.git", from: "1.0.8")
+    .package(url: "https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer.git", from: "1.0.9")
 ]
 ```
 
@@ -60,7 +60,7 @@ Or add the repository URL in Xcode with File -> Add Package Dependencies.
 ### CocoaPods
 
 ```ruby
-pod 'ZWB_SwiftSVGAPlayer', '~> 1.0.8'
+pod 'ZWB_SwiftSVGAPlayer', '~> 1.0.9'
 ```
 
 ---

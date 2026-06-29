@@ -317,21 +317,59 @@ enum SVGAProtoDecoder {
             case 1: shape.type = SVGAProtoShapeType(rawValue: Int(try reader.readVarint())) ?? .shape
             case 2:
                 let bytes = try reader.readBytes()
-                shape.style = try decodeShapeStyle(from: bytes)
+                if let pathArgs = try? decodeShapeArgs(from: bytes), looksLikePathData(pathArgs) {
+                    shape.pathArgs = pathArgs
+                } else {
+                    shape.style = try decodeShapeStyle(from: bytes)
+                }
             case 3:
                 let bytes = try reader.readBytes()
-                shape.transform = try decodeTransform(from: bytes)
-            case 4: shape.pathArgs = try reader.readString()
+                if shape.type == .rect {
+                    shape.rectArgs = try decodeRectArgs(from: bytes)
+                } else {
+                    shape.transform = try decodeTransform(from: bytes)
+                }
+            case 4:
+                if shape.type == .ellipse {
+                    let bytes = try reader.readBytes()
+                    shape.ellipseArgs = try decodeEllipseArgs(from: bytes)
+                } else {
+                    shape.pathArgs = try reader.readString()
+                }
             case 5:
                 let bytes = try reader.readBytes()
                 shape.rectArgs = try decodeRectArgs(from: bytes)
             case 6:
                 let bytes = try reader.readBytes()
                 shape.ellipseArgs = try decodeEllipseArgs(from: bytes)
+            case 10:
+                let bytes = try reader.readBytes()
+                shape.style = try decodeShapeStyle(from: bytes)
+            case 11:
+                let bytes = try reader.readBytes()
+                shape.transform = try decodeTransform(from: bytes)
             default: try reader.skipField(wireType: tag.wireType)
             }
         }
         return shape
+    }
+
+    private static func decodeShapeArgs(from data: Data) throws -> String {
+        var reader = ProtoReader(data: data)
+        var d = ""
+        while let tag = try reader.readTag() {
+            switch tag.fieldNumber {
+            case 1: d = try reader.readString()
+            default: try reader.skipField(wireType: tag.wireType)
+            }
+        }
+        return d
+    }
+
+    private static func looksLikePathData(_ string: String) -> Bool {
+        let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let first = trimmed.first else { return false }
+        return "MmLlHhVvCcSsQqTtAaZz".contains(first)
     }
 
     private static func decodeShapeStyle(from data: Data) throws -> SVGAProtoShapeStyle {
@@ -339,18 +377,93 @@ enum SVGAProtoDecoder {
         var s = SVGAProtoShapeStyle()
         while let tag = try reader.readTag() {
             switch tag.fieldNumber {
-            case 1: s.fill         = try reader.readString()
-            case 2: s.stroke       = try reader.readString()
-            case 3: s.strokeWidth  = try reader.readFloat()
-            case 4: s.lineCap      = try reader.readString()
-            case 5: s.lineJoin     = try reader.readString()
-            case 6: s.miterLimit   = try reader.readFloat()
-            case 7: s.lineDash.append(try reader.readFloat())
-            case 8: s.lineDashOffset = try reader.readFloat()
+            case 1:
+                let bytes = try reader.readBytes()
+                s.fill = (try? decodeRGBAColorHex(from: bytes)) ?? (String(data: bytes, encoding: .utf8) ?? "")
+            case 2:
+                let bytes = try reader.readBytes()
+                s.stroke = (try? decodeRGBAColorHex(from: bytes)) ?? (String(data: bytes, encoding: .utf8) ?? "")
+            case 3:
+                s.strokeWidth = try reader.readFloat()
+            case 4:
+                if tag.wireType == .varint {
+                    s.lineCap = lineCapName(rawValue: Int(try reader.readVarint()))
+                } else {
+                    s.lineCap = try reader.readString()
+                }
+            case 5:
+                if tag.wireType == .varint {
+                    s.lineJoin = lineJoinName(rawValue: Int(try reader.readVarint()))
+                } else {
+                    s.lineJoin = try reader.readString()
+                }
+            case 6:
+                s.miterLimit = try reader.readFloat()
+            case 7:
+                if tag.wireType == .lengthDelimited {
+                    s.lineDash.append(contentsOf: try decodePackedFloats(from: reader.readBytes()))
+                } else {
+                    s.lineDash.append(try reader.readFloat())
+                }
+            case 8:
+                s.lineDashOffset = try reader.readFloat()
             default: try reader.skipField(wireType: tag.wireType)
             }
         }
         return s
+    }
+
+    private static func decodeRGBAColorHex(from data: Data) throws -> String {
+        var reader = ProtoReader(data: data)
+        var r: Float = 0
+        var g: Float = 0
+        var b: Float = 0
+        var a: Float = 1
+        var hasColorComponent = false
+        while let tag = try reader.readTag() {
+            switch tag.fieldNumber {
+            case 1: r = try reader.readFloat(); hasColorComponent = true
+            case 2: g = try reader.readFloat(); hasColorComponent = true
+            case 3: b = try reader.readFloat(); hasColorComponent = true
+            case 4: a = try reader.readFloat(); hasColorComponent = true
+            default: try reader.skipField(wireType: tag.wireType)
+            }
+        }
+        guard hasColorComponent else { throw SVGAError.protobufDecodeFailed("RGBA color missing components") }
+        return String(
+            format: "%02X%02X%02X%02X",
+            colorByte(r), colorByte(g), colorByte(b), colorByte(a)
+        )
+    }
+
+    private static func decodePackedFloats(from data: Data) throws -> [Float] {
+        var reader = ProtoReader(data: data)
+        var values: [Float] = []
+        while !reader.isAtEnd {
+            values.append(try reader.readFloat())
+        }
+        return values
+    }
+
+    private static func colorByte(_ value: Float) -> Int {
+        let clamped = max(0, min(1, value))
+        return Int((clamped * 255).rounded())
+    }
+
+    private static func lineCapName(rawValue: Int) -> String {
+        switch rawValue {
+        case 1: return "round"
+        case 2: return "square"
+        default: return "butt"
+        }
+    }
+
+    private static func lineJoinName(rawValue: Int) -> String {
+        switch rawValue {
+        case 1: return "round"
+        case 2: return "bevel"
+        default: return "miter"
+        }
     }
 
     private static func decodeRectArgs(from data: Data) throws -> SVGAProtoShapeRectArgs {
