@@ -54,7 +54,7 @@
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer.git", from: "1.0.10")
+    .package(url: "https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer.git", from: "1.0.11")
 ]
 ```
 
@@ -63,7 +63,7 @@ dependencies: [
 ### CocoaPods
 
 ```ruby
-pod 'ZWB_SwiftSVGAPlayer', '~> 1.0.10'
+pod 'ZWB_SwiftSVGAPlayer', '~> 1.0.11'
 ```
 
 ---
@@ -169,10 +169,13 @@ player.isReversed = true                      // 反向播放
 player.clear()
 ```
 
-### 生命周期与内存释放（1.0.10）
+### 生命周期、转场与可见区域渲染（1.0.11）
 
 `SwiftSVGAPlayerView` 会在离开 `window` 时自动暂停播放，并在重新挂载到 `window` 后恢复需要继续播放的动画。
 这可以避免页面 push/pop、cell 离屏或控制器返回后，离屏 SVGA 仍然通过 `CADisplayLink` 持续刷新。
+
+从 `1.0.11` 开始，播放器使用默认 RunLoop mode 驱动帧刷新，滚动、手势追踪和导航转场阶段不会继续抢占主线程刷新大量 SVGA。
+如果播放器被隐藏、透明、未挂载到 `window`，或被父视图裁剪在可见区域外，也会跳过当前帧的图层渲染与音频帧更新。
 
 `play(_:)` 的异步加载任务也会在新的加载、`stop()`、`clear()` 或视图释放时取消，避免旧任务完成后回写到已经离开的播放器。
 

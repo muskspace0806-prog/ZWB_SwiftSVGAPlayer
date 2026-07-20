@@ -353,6 +353,7 @@ public final class SwiftSVGAPlayerView: UIView {
         playbackController.onFrameChange = { [weak self] frame in
             guard let self = self else { return }
             self.currentFrame = frame
+            guard self.isFrameRenderableInHierarchy else { return }
             self.renderLayer.step(to: frame)
             self.audioController.update(frame: frame)
             self.onFrameChange?(frame, self.progress)
@@ -371,6 +372,7 @@ public final class SwiftSVGAPlayerView: UIView {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             self.renderLayer.setDynamicItem(item, forKey: key)
+            guard self.isFrameRenderableInHierarchy else { return }
             if self.totalFrames > 0 {
                 self.renderLayer.step(to: self.currentFrame)
             }
@@ -410,6 +412,34 @@ public final class SwiftSVGAPlayerView: UIView {
         shouldResumeWhenAttachedToWindow = false
         playbackController.resume()
         audioController.resume()
+    }
+
+    /// 判断播放器是否处在真实可见的裁剪层级内，避免跑马灯复制视图离屏后仍逐帧渲染。
+    private var isFrameRenderableInHierarchy: Bool {
+        guard window != nil,
+              bounds.width > 0,
+              bounds.height > 0 else { return false }
+
+        var currentView: UIView? = self
+        while let view = currentView {
+            if view.isHidden || view.alpha <= 0.01 {
+                return false
+            }
+
+            if let superview = view.superview {
+                if superview.clipsToBounds || superview.layer.masksToBounds {
+                    let visibleRect = view.convert(view.bounds, to: superview)
+                    if visibleRect.isEmpty || !visibleRect.intersects(superview.bounds) {
+                        return false
+                    }
+                }
+                currentView = superview
+            } else {
+                break
+            }
+        }
+
+        return true
     }
 
     deinit {
