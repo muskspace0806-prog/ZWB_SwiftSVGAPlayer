@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.0.10] - 2026-07-20
+
+### 修复
+- 修复 iOS 26.5/26.5.2 上页面 push/pop 后，离屏 `SwiftSVGAPlayerView` 仍可能持续驱动 `CADisplayLink`，导致内存持续增长或页面卡顿的问题
+- `SwiftSVGAPlayerView` 离开 `window` 时自动暂停播放，重新挂载到 `window` 后按需恢复播放，避免离屏动画继续刷新
+- 修复 `play(_:)` 异步加载任务的生命周期管理，避免旧任务完成后回写到已经离开的播放器
+- `stop()` / `clear()` 会取消当前加载任务并清理自动恢复播放标记
+
+### 文档
+- README / README_EN 同步更新 CocoaPods 与 SPM 集成示例到 `1.0.10`
+- README / README_EN 新增生命周期与内存释放说明
+
+### 发布
+- CocoaPods 版本升级到 `1.0.10`
+- SPM 通过 Git tag `1.0.10` 分发
+
 ## [1.0.9] - 2026-06-29
 
 ### 修复

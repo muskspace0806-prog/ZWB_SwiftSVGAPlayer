@@ -49,8 +49,11 @@ public final class SwiftSVGAPlayerView: UIView {
     private var currentVideo: SVGAVideo?
     private var currentSource: SVGASource?
     private var loadTask: Task<Void, Never>?
+    private var loadTaskID: UInt = 0
     private var pendingLoopMode: SVGALoopMode = .forever
     private var pendingRange: Range<Int>? = nil
+    private var shouldResumeWhenAttachedToWindow = false
+    private var needsPlaybackOnWindowAttach = false
 
     // MARK: - Init
 
@@ -84,6 +87,16 @@ public final class SwiftSVGAPlayerView: UIView {
     public override func layoutSubviews() {
         super.layoutSubviews()
         updateRenderLayerFrame()
+    }
+
+    public override func didMoveToWindow() {
+        super.didMoveToWindow()
+
+        if window == nil {
+            pausePlaybackForWindowDetach()
+        } else {
+            resumePlaybackAfterWindowAttachIfNeeded()
+        }
     }
 
     // MARK: - Layout
@@ -134,11 +147,19 @@ public final class SwiftSVGAPlayerView: UIView {
     @discardableResult
     public func load(_ source: SVGASource) async throws -> SVGAVideo {
         loadTask?.cancel()
+        loadTask = nil
+        loadTaskID &+= 1
+        return try await loadSource(source)
+    }
+
+    @discardableResult
+    private func loadSource(_ source: SVGASource) async throws -> SVGAVideo {
         setState(.loading)
         currentSource = source
 
         do {
             let video = try await parser.parse(source)
+            guard !Task.isCancelled else { throw SVGAError.cancelled }
             guard currentSource == source else { throw SVGAError.cancelled }
 
             self.currentVideo = video
@@ -174,9 +195,21 @@ public final class SwiftSVGAPlayerView: UIView {
 
     public func play(_ source: SVGASource, loop: SVGALoopMode = .forever) {
         pendingLoopMode = loop
+        loadTask?.cancel()
+        loadTaskID &+= 1
+        let taskID = loadTaskID
         loadTask = Task { [weak self] in
             guard let self = self else { return }
-            do { try await self.load(source); self.play(loop: loop) } catch {}
+            defer {
+                if self.loadTaskID == taskID {
+                    self.loadTask = nil
+                }
+            }
+            do {
+                try await self.loadSource(source)
+                guard !Task.isCancelled, self.loadTaskID == taskID else { return }
+                self.play(loop: loop)
+            } catch {}
         }
     }
 
@@ -189,10 +222,28 @@ public final class SwiftSVGAPlayerView: UIView {
 
     // MARK: - Control
 
-    public func pause()  { playbackController.pause();  audioController.pause() }
-    public func resume() { playbackController.resume(); audioController.resume() }
+    public func pause()  {
+        shouldResumeWhenAttachedToWindow = false
+        needsPlaybackOnWindowAttach = false
+        playbackController.pause()
+        audioController.pause()
+    }
+
+    public func resume() {
+        guard window != nil else {
+            shouldResumeWhenAttachedToWindow = true
+            return
+        }
+        playbackController.resume()
+        audioController.resume()
+    }
 
     public func stop(then scene: SVGAStopScene = .clearLayers) {
+        loadTask?.cancel()
+        loadTask = nil
+        loadTaskID &+= 1
+        shouldResumeWhenAttachedToWindow = false
+        needsPlaybackOnWindowAttach = false
         playbackController.stop()
         audioController.stop()
         applyStopScene(scene)
@@ -214,7 +265,10 @@ public final class SwiftSVGAPlayerView: UIView {
     }
 
     public func clear() {
+        loadTaskID &+= 1
         loadTask?.cancel(); loadTask = nil
+        shouldResumeWhenAttachedToWindow = false
+        needsPlaybackOnWindowAttach = false
         playbackController.stop()
         audioController.stop()
         renderLayer.clearLayers()
@@ -285,6 +339,13 @@ public final class SwiftSVGAPlayerView: UIView {
         currentFrame = startFrame
         renderLayer.step(to: startFrame)
         audioController.seek(toFrame: startFrame)
+        guard window != nil else {
+            // 视图还未挂到 window 时不启动 CADisplayLink，避免离屏播放器常驻刷新。
+            needsPlaybackOnWindowAttach = true
+            setState(.paused)
+            return
+        }
+        needsPlaybackOnWindowAttach = false
         playbackController.startDriver(fps: video.clampedFPS)
     }
 
@@ -330,5 +391,34 @@ public final class SwiftSVGAPlayerView: UIView {
         case .keepCurrentFrame:
             break
         }
+    }
+
+    private func pausePlaybackForWindowDetach() {
+        guard state == .playing else { return }
+        shouldResumeWhenAttachedToWindow = true
+        playbackController.pause()
+        audioController.pause()
+    }
+
+    private func resumePlaybackAfterWindowAttachIfNeeded() {
+        if needsPlaybackOnWindowAttach {
+            needsPlaybackOnWindowAttach = false
+            play(loop: pendingLoopMode)
+            return
+        }
+        guard shouldResumeWhenAttachedToWindow else { return }
+        shouldResumeWhenAttachedToWindow = false
+        playbackController.resume()
+        audioController.resume()
+    }
+
+    deinit {
+        loadTask?.cancel()
+        onStateChange = nil
+        onFrameChange = nil
+        onCompletion = nil
+        onError = nil
+        currentVideo = nil
+        currentSource = nil
     }
 }
