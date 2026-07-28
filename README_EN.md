@@ -51,7 +51,7 @@ Add the package in `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer.git", from: "1.0.11")
+    .package(url: "https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer.git", from: "1.0.12")
 ]
 ```
 
@@ -60,7 +60,7 @@ Or add the repository URL in Xcode with File -> Add Package Dependencies.
 ### CocoaPods
 
 ```ruby
-pod 'ZWB_SwiftSVGAPlayer', '~> 1.0.11'
+pod 'ZWB_SwiftSVGAPlayer', '~> 1.0.12'
 ```
 
 ---
@@ -173,12 +173,22 @@ player.isReversed = true
 player.clear()
 ```
 
-## Lifecycle, Transitions, And Visible Rendering
+## Lifecycle, Transitions, RunLoop Mode, And Visible Rendering
 
 Since `1.0.10`, `SwiftSVGAPlayerView` automatically pauses playback when it leaves the `window`, and resumes playback when it is attached again if the animation was playing before.
 This prevents off-screen SVGA views from continuing to drive `CADisplayLink` during navigation transitions, reused cells, or controller pop flows.
 
 Since `1.0.11`, the player drives frames in the default RunLoop mode, so heavy SVGA playback does not keep competing with scrolling, gesture tracking, or navigation transitions.
+Since `1.0.12`, `displayLinkRunLoopMode` can be configured per player. The default remains `.default`, so list cells and pages with many players keep the previous behavior. For full-screen gifts, live return-coin effects, or other must-keep-playing animations, set it to `.common` before playback to keep rendering while a chat list is being dragged.
+
+```swift
+// Default behavior. Scrolling and gesture tracking do not keep driving frames.
+player.displayLinkRunLoopMode = .default
+
+// Full-screen gifts or live return-coin effects that must keep playing while scrolling.
+player.displayLinkRunLoopMode = .common
+```
+
 When the player is hidden, transparent, detached from `window`, or clipped outside an ancestor's visible bounds, the current frame render and audio frame update are skipped.
 
 Async loading started by `play(_:)` is also cancelled when a new load starts, when `stop()` / `clear()` is called, or when the view is released. This prevents stale load tasks from writing decoded resources back to a detached player.

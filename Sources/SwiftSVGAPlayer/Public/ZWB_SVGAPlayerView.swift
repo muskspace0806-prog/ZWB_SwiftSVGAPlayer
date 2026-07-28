@@ -25,6 +25,7 @@ public struct SVGAPlayerView: UIViewRepresentable {
     private var isReversed: Bool = false
     private var isMuted: Bool = false
     private var contentMode: UIView.ContentMode = .scaleAspectFit
+    private var displayLinkRunLoopMode: RunLoop.Mode = .default
     private var onStateChange: ((SVGAPlaybackState) -> Void)? = nil
     private var onFrameChange: ((Int, Double) -> Void)? = nil
     private var onComplete: (() -> Void)? = nil
@@ -49,6 +50,7 @@ public struct SVGAPlayerView: UIViewRepresentable {
         uiView.contentMode  = contentMode
         uiView.isReversed   = isReversed
         uiView.isMuted      = isMuted
+        uiView.displayLinkRunLoopMode = displayLinkRunLoopMode
         uiView.onStateChange = onStateChange
         uiView.onFrameChange = onFrameChange
         uiView.onCompletion  = onComplete
@@ -91,6 +93,11 @@ public extension SVGAPlayerView {
     /// 内容缩放模式（默认 scaleAspectFit）
     func svgaContentMode(_ mode: UIView.ContentMode) -> SVGAPlayerView {
         var copy = self; copy.contentMode = mode; return copy
+    }
+
+    /// CADisplayLink 所在 RunLoop mode。默认 `.default`；需要滚动期间持续播放时可设置为 `.common`。
+    func svgaDisplayLinkRunLoopMode(_ mode: RunLoop.Mode) -> SVGAPlayerView {
+        var copy = self; copy.displayLinkRunLoopMode = mode; return copy
     }
 
     /// 状态变化回调

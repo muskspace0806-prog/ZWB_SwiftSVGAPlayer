@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.0.12] - 2026-07-28
+
+### 新增
+- `SwiftSVGAPlayerView` 新增 `displayLinkRunLoopMode`，默认保持 `.default`，可按业务需要设置为 `.common`
+- SwiftUI `SVGAPlayerView` 新增 `.svgaDisplayLinkRunLoopMode(_:)` 配置
+
+### 修复
+- 支持全屏礼物、直播返币等强展示场景在列表滚动或手势追踪期间持续刷新 SVGA，避免 `CADisplayLink` 因 default RunLoop mode 暂停导致动画卡住不动
+- 默认值不变，列表 cell 等大量播放器场景仍保持滚动期间不抢占主线程的原策略
+
+### 文档
+- README / README_EN 同步更新 CocoaPods 与 SPM 集成示例到 `1.0.12`
+- README / README_EN 新增 RunLoop mode 配置说明
+
+### 发布
+- CocoaPods 版本升级到 `1.0.12`
+- SPM 通过 Git tag `1.0.12` 分发
+
 ## [1.0.11] - 2026-07-20
 
 ### 修复

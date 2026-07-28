@@ -12,14 +12,14 @@ final class SVGADisplayLinkDriver {
 
     // MARK: - Public
 
-    func start(fps: Int, tick: @escaping () -> Void) {
+    func start(fps: Int, runLoopMode: RunLoop.Mode, tick: @escaping () -> Void) {
         stop()
         self.tick = tick
         let targetFPS = Swift.max(1, Swift.min(fps, 60))
 
         let link = CADisplayLink(target: WeakTarget(self), selector: #selector(WeakTarget.tick(_:)))
-        // 使用 default mode，避免滚动和导航追踪阶段继续刷新大量离屏 SVGA。
-        link.add(to: .main, forMode: .default)
+        // 默认使用 .default，业务可按需指定 .common 以便手势追踪或列表滚动期间持续播放。
+        link.add(to: .main, forMode: runLoopMode)
 
         if #available(iOS 15.0, *) {
             link.preferredFrameRateRange = CAFrameRateRange(

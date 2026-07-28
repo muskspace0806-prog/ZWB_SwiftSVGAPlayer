@@ -40,10 +40,10 @@ final class SVGAPlaybackController {
 
     // MARK: - Playback Control
 
-    func startDriver(fps: Int) {
+    func startDriver(fps: Int, runLoopMode: RunLoop.Mode) {
         loopCount = 0
         currentFrame = isReversed ? range.upperBound - 1 : range.lowerBound
-        driver.start(fps: fps) { [weak self] in
+        driver.start(fps: fps, runLoopMode: runLoopMode) { [weak self] in
             self?.advance()
         }
         setState(.playing)

@@ -21,6 +21,8 @@ public final class SwiftSVGAPlayerView: UIView {
         didSet { SVGALogger.shared.logLevel = isDebugLogEnabled ? .debug : .warning }
     }
     public var clearsAfterStop: Bool = false
+    /// CADisplayLink 所在 RunLoop mode。默认 `.default` 以减少滚动场景抢占主线程；全屏礼物等需要滚动期间持续播放的场景可设置为 `.common`。
+    public var displayLinkRunLoopMode: RunLoop.Mode = .default
 
     // MARK: - Readonly State
 
@@ -346,7 +348,7 @@ public final class SwiftSVGAPlayerView: UIView {
             return
         }
         needsPlaybackOnWindowAttach = false
-        playbackController.startDriver(fps: video.clampedFPS)
+        playbackController.startDriver(fps: video.clampedFPS, runLoopMode: displayLinkRunLoopMode)
     }
 
     private func setupPlaybackController() {
