@@ -51,7 +51,7 @@ Add the package in `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer.git", from: "1.0.12")
+    .package(url: "https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer.git", from: "1.0.13")
 ]
 ```
 
@@ -60,7 +60,7 @@ Or add the repository URL in Xcode with File -> Add Package Dependencies.
 ### CocoaPods
 
 ```ruby
-pod 'ZWB_SwiftSVGAPlayer', '~> 1.0.12'
+pod 'ZWB_SwiftSVGAPlayer', '~> 1.0.13'
 ```
 
 ---
@@ -191,12 +191,22 @@ player.displayLinkRunLoopMode = .common
 
 When the player is hidden, transparent, detached from `window`, or clipped outside an ancestor's visible bounds, the current frame render and audio frame update are skipped.
 
-Async loading started by `play(_:)` is also cancelled when a new load starts, when `stop()` / `clear()` is called, or when the view is released. This prevents stale load tasks from writing decoded resources back to a detached player.
+Since `1.0.13`, callers that already manage visibility externally, such as a marquee container that periodically decides which duplicated views should play, can set `usesExternalVisibilityControl` to skip the player's per-frame hierarchy clipping check and reduce main-thread cost while many SVGA views are moving.
+
+```swift
+// Enable only when visibility is already managed by the caller.
+player.usesExternalVisibilityControl = true
+```
+
+Async loading started by `play(_:)` is also cancelled when a new load starts, when `stop()` / `clear()` is called, or when the view is released. This prevents stale load tasks from writing decoded resources back to a detached player. `1.0.13` also exposes `cancelLoading()` for reused cells or marquee items that leave the visible range, so callers can cancel only the current load task while keeping already loaded content.
 
 ```swift
 // Recommended when a reused cell or a finished page no longer needs playback.
 player.stop()
 player.clear()
+
+// Cancel the current async load without clearing already rendered content.
+player.cancelLoading()
 ```
 
 ---

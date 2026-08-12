@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.0.13] - 2026-08-12
+
+### 新增
+- `SwiftSVGAPlayerView` 新增 `usesExternalVisibilityControl`，支持业务层已托管可见范围时跳过播放器内部每帧层级裁剪判断
+- `SwiftSVGAPlayerView` 新增公开 `cancelLoading()`，支持 cell 复用、跑马灯离开可见区等场景只取消当前异步加载任务
+- DEBUG 环境新增播放器实例、播放中实例和加载耗时日志，方便定位大量 SVGA 同屏时的性能问题
+
+### 修复
+- 跑马灯等父视图持续位移场景可由外部低频可见性裁剪统一控制播放/暂停，避免每个播放器在每帧重复做层级裁剪判断
+- `resume()` 在等待挂载或延迟播放状态下会按待播放配置重新拉起，减少异步加载后停在暂停态的情况
+
+### 文档
+- README / README_EN 同步更新 CocoaPods 与 SPM 集成示例到 `1.0.13`
+- README / README_EN 新增外部可见性托管和 `cancelLoading()` 说明
+
+### 发布
+- CocoaPods 版本升级到 `1.0.13`
+- SPM 通过 Git tag `1.0.13` 分发
+
 ## [1.0.12] - 2026-07-28
 
 ### 新增

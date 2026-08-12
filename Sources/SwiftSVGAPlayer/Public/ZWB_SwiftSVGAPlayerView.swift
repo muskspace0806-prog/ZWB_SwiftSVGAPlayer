@@ -6,6 +6,16 @@ import QuartzCore
 /// SVGA 播放器视图
 public final class SwiftSVGAPlayerView: UIView {
 
+    // MARK: - Debug
+
+    private static var debugNextIdentifier: Int = 0
+    private static var debugLiveInstanceCount: Int = 0
+    private static var debugPlayingInstanceCount: Int = 0
+    private static let debugLock = NSLock()
+
+    private let debugIdentifier: Int = SwiftSVGAPlayerView.makeDebugIdentifier()
+    private var debugIsPlaying: Bool = false
+
     // MARK: - Public Properties
 
     public var isMuted: Bool = false {
@@ -23,6 +33,8 @@ public final class SwiftSVGAPlayerView: UIView {
     public var clearsAfterStop: Bool = false
     /// CADisplayLink 所在 RunLoop mode。默认 `.default` 以减少滚动场景抢占主线程；全屏礼物等需要滚动期间持续播放的场景可设置为 `.common`。
     public var displayLinkRunLoopMode: RunLoop.Mode = .default
+    /// 外部已托管可见性时，跳过播放器内部每帧层级裁剪判断，适用于跑马灯这类父视图持续位移的场景。
+    public var usesExternalVisibilityControl: Bool = false
 
     // MARK: - Readonly State
 
@@ -57,6 +69,43 @@ public final class SwiftSVGAPlayerView: UIView {
     private var shouldResumeWhenAttachedToWindow = false
     private var needsPlaybackOnWindowAttach = false
 
+    private static func makeDebugIdentifier() -> Int {
+        debugLock.lock()
+        defer { debugLock.unlock() }
+        debugNextIdentifier += 1
+        return debugNextIdentifier
+    }
+
+    private static func updateDebugCounts(liveDelta: Int = 0, playingDelta: Int = 0) -> (live: Int, playing: Int) {
+        debugLock.lock()
+        defer { debugLock.unlock() }
+        debugLiveInstanceCount += liveDelta
+        debugPlayingInstanceCount += playingDelta
+        return (debugLiveInstanceCount, debugPlayingInstanceCount)
+    }
+
+    private static func debugCounts() -> (live: Int, playing: Int) {
+        debugLock.lock()
+        defer { debugLock.unlock() }
+        return (debugLiveInstanceCount, debugPlayingInstanceCount)
+    }
+
+    private func debugLog(_ message: String) {
+        #if DEBUG
+        let counts = SwiftSVGAPlayerView.debugCounts()
+        print("【ZWB性能排查】SwiftSVGAPlayerView#\(debugIdentifier) \(message) live=\(counts.live) playing=\(counts.playing) state=\(state)")
+        #endif
+    }
+
+    private func updateDebugPlaying(_ isPlaying: Bool) {
+        guard debugIsPlaying != isPlaying else { return }
+        debugIsPlaying = isPlaying
+        let counts = SwiftSVGAPlayerView.updateDebugCounts(playingDelta: isPlaying ? 1 : -1)
+        #if DEBUG
+        print("【ZWB性能排查】SwiftSVGAPlayerView#\(debugIdentifier) playing=\(isPlaying) live=\(counts.live) playing=\(counts.playing)")
+        #endif
+    }
+
     // MARK: - Init
 
     public override init(frame: CGRect = .zero) {
@@ -78,6 +127,10 @@ public final class SwiftSVGAPlayerView: UIView {
     }
 
     private func setup() {
+        let counts = SwiftSVGAPlayerView.updateDebugCounts(liveDelta: 1)
+        #if DEBUG
+        print("【ZWB性能排查】SwiftSVGAPlayerView#\(debugIdentifier) init live=\(counts.live) playing=\(counts.playing)")
+        #endif
         backgroundColor = .clear
         clipsToBounds   = true
         // anchorPoint 默认 (0.5,0.5)，position 初始居中
@@ -156,6 +209,8 @@ public final class SwiftSVGAPlayerView: UIView {
 
     @discardableResult
     private func loadSource(_ source: SVGASource) async throws -> SVGAVideo {
+        let loadStartTime = CFAbsoluteTimeGetCurrent()
+        debugLog("load start source=\(source)")
         setState(.loading)
         currentSource = source
 
@@ -170,16 +225,22 @@ public final class SwiftSVGAPlayerView: UIView {
             self.updateRenderLayerFrame()
             self.audioController.configure(audios: video.audios, fps: video.clampedFPS)
             self.setState(.ready)
+            let elapsed = Int((CFAbsoluteTimeGetCurrent() - loadStartTime) * 1000)
+            debugLog("load success elapsed=\(elapsed)ms frames=\(video.playbackFrames) fps=\(video.clampedFPS) size=\(video.size)")
             return video
 
         } catch let error as SVGAError {
             self.setState(.failed(error))
             self.onError?(error)
+            let elapsed = Int((CFAbsoluteTimeGetCurrent() - loadStartTime) * 1000)
+            debugLog("load failed elapsed=\(elapsed)ms error=\(error)")
             throw error
         } catch {
             let e = SVGAError.internalError(error.localizedDescription)
             self.setState(.failed(e))
             self.onError?(e)
+            let elapsed = Int((CFAbsoluteTimeGetCurrent() - loadStartTime) * 1000)
+            debugLog("load failed elapsed=\(elapsed)ms error=\(error.localizedDescription)")
             throw e
         }
     }
@@ -196,6 +257,7 @@ public final class SwiftSVGAPlayerView: UIView {
     }
 
     public func play(_ source: SVGASource, loop: SVGALoopMode = .forever) {
+        debugLog("play source request loop=\(loop)")
         pendingLoopMode = loop
         loadTask?.cancel()
         loadTaskID &+= 1
@@ -229,15 +291,38 @@ public final class SwiftSVGAPlayerView: UIView {
         needsPlaybackOnWindowAttach = false
         playbackController.pause()
         audioController.pause()
+        updateDebugPlaying(false)
+        debugLog("pause")
+    }
+
+    public func cancelLoading() {
+        loadTask?.cancel()
+        loadTask = nil
+        loadTaskID &+= 1
+        if state == .loading {
+            setState(currentVideo == nil ? .idle : .ready)
+        }
+        debugLog("cancel loading")
     }
 
     public func resume() {
+        if needsPlaybackOnWindowAttach {
+            needsPlaybackOnWindowAttach = false
+            debugLog("resume deferred playback")
+            play(loop: pendingLoopMode)
+            return
+        }
         guard window != nil else {
             shouldResumeWhenAttachedToWindow = true
+            debugLog("resume deferred window=nil")
             return
         }
         playbackController.resume()
         audioController.resume()
+        if currentVideo != nil {
+            updateDebugPlaying(true)
+        }
+        debugLog("resume")
     }
 
     public func stop(then scene: SVGAStopScene = .clearLayers) {
@@ -249,6 +334,8 @@ public final class SwiftSVGAPlayerView: UIView {
         playbackController.stop()
         audioController.stop()
         applyStopScene(scene)
+        updateDebugPlaying(false)
+        debugLog("stop scene=\(scene)")
     }
 
     public func seek(toFrame frame: Int) {
@@ -277,6 +364,8 @@ public final class SwiftSVGAPlayerView: UIView {
         currentVideo = nil; currentSource = nil
         currentFrame = 0;   totalFrames   = 0
         setState(.idle)
+        updateDebugPlaying(false)
+        debugLog("clear")
     }
 
     // MARK: - Dynamic Content
@@ -341,21 +430,25 @@ public final class SwiftSVGAPlayerView: UIView {
         currentFrame = startFrame
         renderLayer.step(to: startFrame)
         audioController.seek(toFrame: startFrame)
-        guard window != nil else {
-            // 视图还未挂到 window 时不启动 CADisplayLink，避免离屏播放器常驻刷新。
+        guard window != nil, isRenderableByCurrentVisibilityPolicy else {
+            // 视图还未挂到 window 或处于隐藏/离屏裁剪状态时不启动 CADisplayLink，避免不可见播放器常驻刷新。
             needsPlaybackOnWindowAttach = true
+            updateDebugPlaying(false)
             setState(.paused)
+            debugLog("start deferred invisible frames=\(video.playbackFrames) fps=\(video.clampedFPS)")
             return
         }
         needsPlaybackOnWindowAttach = false
         playbackController.startDriver(fps: video.clampedFPS, runLoopMode: displayLinkRunLoopMode)
+        updateDebugPlaying(true)
+        debugLog("start playback frames=\(video.playbackFrames) fps=\(video.clampedFPS) mode=\(displayLinkRunLoopMode)")
     }
 
     private func setupPlaybackController() {
         playbackController.onFrameChange = { [weak self] frame in
             guard let self = self else { return }
             self.currentFrame = frame
-            guard self.isFrameRenderableInHierarchy else { return }
+            guard self.isRenderableByCurrentVisibilityPolicy else { return }
             self.renderLayer.step(to: frame)
             self.audioController.update(frame: frame)
             self.onFrameChange?(frame, self.progress)
@@ -374,7 +467,7 @@ public final class SwiftSVGAPlayerView: UIView {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             self.renderLayer.setDynamicItem(item, forKey: key)
-            guard self.isFrameRenderableInHierarchy else { return }
+            guard self.isRenderableByCurrentVisibilityPolicy else { return }
             if self.totalFrames > 0 {
                 self.renderLayer.step(to: self.currentFrame)
             }
@@ -402,6 +495,8 @@ public final class SwiftSVGAPlayerView: UIView {
         shouldResumeWhenAttachedToWindow = true
         playbackController.pause()
         audioController.pause()
+        updateDebugPlaying(false)
+        debugLog("auto pause window detach")
     }
 
     private func resumePlaybackAfterWindowAttachIfNeeded() {
@@ -414,6 +509,10 @@ public final class SwiftSVGAPlayerView: UIView {
         shouldResumeWhenAttachedToWindow = false
         playbackController.resume()
         audioController.resume()
+        if currentVideo != nil {
+            updateDebugPlaying(true)
+        }
+        debugLog("auto resume window attach")
     }
 
     /// 判断播放器是否处在真实可见的裁剪层级内，避免跑马灯复制视图离屏后仍逐帧渲染。
@@ -444,7 +543,16 @@ public final class SwiftSVGAPlayerView: UIView {
         return true
     }
 
+    private var isRenderableByCurrentVisibilityPolicy: Bool {
+        usesExternalVisibilityControl || isFrameRenderableInHierarchy
+    }
+
     deinit {
+        updateDebugPlaying(false)
+        let counts = SwiftSVGAPlayerView.updateDebugCounts(liveDelta: -1)
+        #if DEBUG
+        print("【ZWB性能排查】SwiftSVGAPlayerView#\(debugIdentifier) deinit live=\(counts.live) playing=\(counts.playing)")
+        #endif
         loadTask?.cancel()
         onStateChange = nil
         onFrameChange = nil

@@ -54,7 +54,7 @@
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer.git", from: "1.0.12")
+    .package(url: "https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer.git", from: "1.0.13")
 ]
 ```
 
@@ -63,7 +63,7 @@ dependencies: [
 ### CocoaPods
 
 ```ruby
-pod 'ZWB_SwiftSVGAPlayer', '~> 1.0.12'
+pod 'ZWB_SwiftSVGAPlayer', '~> 1.0.13'
 ```
 
 ---
@@ -170,7 +170,7 @@ player.isReversed = true                      // 反向播放
 player.clear()
 ```
 
-### 生命周期、转场、RunLoop mode 与可见区域渲染（1.0.12）
+### 生命周期、转场、RunLoop mode 与可见区域渲染
 
 `SwiftSVGAPlayerView` 会在离开 `window` 时自动暂停播放，并在重新挂载到 `window` 后恢复需要继续播放的动画。
 这可以避免页面 push/pop、cell 离屏或控制器返回后，离屏 SVGA 仍然通过 `CADisplayLink` 持续刷新。
@@ -188,12 +188,22 @@ player.displayLinkRunLoopMode = .common
 
 如果播放器被隐藏、透明、未挂载到 `window`，或被父视图裁剪在可见区域外，也会跳过当前帧的图层渲染与音频帧更新。
 
-`play(_:)` 的异步加载任务也会在新的加载、`stop()`、`clear()` 或视图释放时取消，避免旧任务完成后回写到已经离开的播放器。
+从 `1.0.13` 开始，如果业务层已经托管可见范围（例如跑马灯父容器按低频定时器统一判断哪些复制视图需要播放），可以开启 `usesExternalVisibilityControl`，跳过播放器内部每帧层级裁剪判断，减少大量 SVGA 同时位移时的主线程开销。
+
+```swift
+// 仅在外部已经负责可见性裁剪时开启
+player.usesExternalVisibilityControl = true
+```
+
+`play(_:)` 的异步加载任务也会在新的加载、`stop()`、`clear()` 或视图释放时取消，避免旧任务完成后回写到已经离开的播放器。`1.0.13` 额外公开 `cancelLoading()`，方便 cell 复用、跑马灯离开可见区等场景只取消加载任务并保留当前已加载内容。
 
 ```swift
 // 推荐在 cell 复用或页面明确结束播放时主动清理
 player.stop()
 player.clear()
+
+// 只想取消当前异步加载，不清空已渲染内容时使用
+player.cancelLoading()
 ```
 
 ### 动态内容
