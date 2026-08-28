@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.0.14] - 2026-08-28
+
+### 新增
+- `SwiftSVGAPlayerView` 新增 `setAnimatedImageURL(_:forKey:)`，支持外部传入字符串 URL 替换动态 GIF / animated WebP
+- 新增 `setAnimatedImageURL(_:forKey:options:)`，动图替换支持与静态动态图片一致的 `SVGADynamicImageOptions`，可用于头像圆形裁剪
+- CocoaPods 与 SPM 默认引入 `Kingfisher` + `KingfisherWebP`，WebP 动图优先走 KingfisherWebP；如果宿主已集成 SDWebImage，运行时可作为兜底解码
+
+### 修复
+- 动图替换层随 SVGA key 的 frame 更新位置，避免 SVGA 帧刷新覆盖或清理 GIF/WebP 播放
+- 播放完成、`stop()`、`clear()` 或播放器释放时自动销毁 GIF/WebP 动图覆盖层
+- `benefactor_avatar` 等近似正方形头像 key 在未显式传 options 时会保守推断为圆形裁剪
+
+### 文档
+- README / README_EN 同步更新 CocoaPods 与 SPM 集成示例到 `1.0.14`
+- README / README_EN 新增 GIF/WebP 动图替换和圆形裁剪示例
+
+### 发布
+- CocoaPods 版本升级到 `1.0.14`
+- SPM 通过 Git tag `1.0.14` 分发
+
 ## [1.0.13] - 2026-08-12
 
 ### 新增

@@ -8,15 +8,15 @@
 
 **[中文](README.md) | English**
 
-**SwiftSVGAPlayer** is a pure Swift SVGA animation player for iOS 13+. It provides a modern Swift API, UIKit playback, SwiftUI integration, dynamic content replacement, caching, and CocoaPods / Swift Package Manager distribution.
+**SwiftSVGAPlayer** is an SVGA animation player with Swift-based core parsing and rendering for iOS 13+. It provides a modern Swift API, UIKit playback, SwiftUI integration, dynamic content replacement, animated GIF/WebP replacement, caching, and CocoaPods / Swift Package Manager distribution.
 
 ---
 
 ## Features
 
-### Pure Swift
+### Swift Core
 
-- No Objective-C code
+- Swift implementation for core SVGA parsing, playback, and rendering
 - No pbobjc / GPBProtocolBuffers
 - No SSZipArchive
 - Lightweight built-in Protobuf decoder for SVGA 2.x
@@ -36,6 +36,7 @@
 - Play, pause, resume, stop, and seek
 - Reverse playback and playback ranges
 - Dynamic image, image URL, text, hidden state, and drawing block
+- Dynamic GIF and animated WebP URL replacement, powered by Kingfisher + KingfisherWebP with SDWebImage runtime fallback
 - Loading de-duplication with actor-based coordination
 - Memory cache and disk data cache
 - Basic audio playback with frame synchronization
@@ -51,7 +52,7 @@ Add the package in `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer.git", from: "1.0.13")
+    .package(url: "https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer.git", from: "1.0.14")
 ]
 ```
 
@@ -60,7 +61,7 @@ Or add the repository URL in Xcode with File -> Add Package Dependencies.
 ### CocoaPods
 
 ```ruby
-pod 'ZWB_SwiftSVGAPlayer', '~> 1.0.13'
+pod 'ZWB_SwiftSVGAPlayer', '~> 1.0.14'
 ```
 
 ---
@@ -139,6 +140,20 @@ Dynamic images can be configured before playback starts. Since `1.0.8`, the play
 player.setImageURL(URL(string: "https://example.com/a.jpg"), forKey: "avatar", options: .circle())
 player.play(.named("gift"), loop: .forever)
 ```
+
+Replace a dynamic image with an animated GIF or WebP URL. The public API accepts a string URL and the player decides whether the downloaded data is animated:
+
+```swift
+player.setAnimatedImageURL("https://example.com/avatar.webp", forKey: "avatar")
+
+player.setAnimatedImageURL(
+    "https://example.com/avatar.gif",
+    forKey: "avatar",
+    options: .circle(contentMode: .aspectFill)
+)
+```
+
+Animated overlays follow the matched SVGA key frame, support the same circle/fixed-corner options as static dynamic images, and are removed automatically when playback completes, stops, clears, or the player is released.
 
 Replace text:
 

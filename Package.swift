@@ -17,10 +17,17 @@ let package = Package(
             targets: ["SwiftSVGAPlayer"]
         )
     ],
-    dependencies: [],
+    dependencies: [
+        .package(url: "https://github.com/onevcat/Kingfisher.git", from: "8.0.0"),
+        .package(url: "https://github.com/yeatse/KingfisherWebP.git", from: "1.7.3")
+    ],
     targets: [
         .target(
             name: "SwiftSVGAPlayer",
+            dependencies: [
+                .product(name: "Kingfisher", package: "Kingfisher"),
+                .product(name: "KingfisherWebP", package: "KingfisherWebP")
+            ],
             path: "Sources/SwiftSVGAPlayer",
             exclude: [
                 "Protobuf/README.md"   // 排除文档，避免被当作源码/资源

@@ -8,14 +8,14 @@
 
 **中文 | [English](README_EN.md)**
 
-**SwiftSVGAPlayer** 是一个纯 Swift 实现的 SVGA 动画播放器，支持 iOS 13+，提供现代 Swift API 和 SwiftUI 支持。
+**SwiftSVGAPlayer** 是一个以 Swift 实现核心解析与渲染的 SVGA 动画播放器，支持 iOS 13+，提供现代 Swift API、SwiftUI 支持和动态 GIF/WebP 替换能力。
 
 ---
 
 ## 特性
 
-### 纯 Swift，零 OC 依赖
-- 无 Objective-C 代码
+### Swift 核心实现
+- 核心 SVGA 解析、播放与渲染代码使用 Swift 实现
 - 无 pbobjc / GPBProtocolBuffers
 - 无 SSZipArchive
 - 自研轻量 Protobuf 解析器（支持 SVGA 2.x）
@@ -36,6 +36,7 @@
 - ✅ Reverse playback（反向播放）
 - ✅ Playback range（播放区间）
 - ✅ Dynamic image / imageURL / text / hidden / drawing block
+- ✅ Dynamic GIF / animated WebP URL replacement（基于 Kingfisher + KingfisherWebP，SDWebImage 运行时兜底）
 - ✅ Loading de-duplication（actor-based 加载防重）
 - ✅ Memory cache（NSCache）
 - ✅ Disk data cache
@@ -54,7 +55,7 @@
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer.git", from: "1.0.13")
+    .package(url: "https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer.git", from: "1.0.14")
 ]
 ```
 
@@ -63,7 +64,7 @@ dependencies: [
 ### CocoaPods
 
 ```ruby
-pod 'ZWB_SwiftSVGAPlayer', '~> 1.0.13'
+pod 'ZWB_SwiftSVGAPlayer', '~> 1.0.14'
 ```
 
 ---
@@ -225,6 +226,16 @@ player.setImageURL(
 // 动态图片可先于 play 设置；1.0.8 起加载 SVGA 时会保留已设置的动态内容
 player.setImageURL(URL(string: "https://..."), forKey: "avatar", options: .circle())
 player.play(.named("gift"), loop: .forever)
+
+// 动态 GIF / WebP 替换：外部传字符串，内部下载并判断是否为动图（1.0.14）
+player.setAnimatedImageURL("https://example.com/avatar.webp", forKey: "avatar")
+
+// 动态头像：与静态图片一致支持圆形裁剪；播放完成、stop 或 clear 时会自动销毁动图覆盖层
+player.setAnimatedImageURL(
+    "https://example.com/avatar.gif",
+    forKey: "avatar",
+    options: .circle(contentMode: .aspectFill)
+)
 
 // 自定义动态图片渲染：contentMode / 固定圆角 / 裁剪
 let imageOptions = SVGADynamicImageOptions(

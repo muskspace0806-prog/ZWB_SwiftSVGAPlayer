@@ -1,13 +1,13 @@
 Pod::Spec.new do |s|
   s.name             = 'ZWB_SwiftSVGAPlayer'
-  s.version          = '1.0.13'
-  s.summary          = 'A pure Swift SVGA animation player for iOS 13+'
+  s.version          = '1.0.14'
+  s.summary          = 'A Swift-based SVGA animation player for iOS 13+'
   s.description      = <<-DESC
-    SwiftSVGAPlayer is a pure Swift implementation of an SVGA animation player.
+    SwiftSVGAPlayer is a Swift-based implementation of an SVGA animation player.
     It supports iOS 13+, CocoaPods distribution, and provides a modern Swift API.
-    No Objective-C dependencies. No pbobjc. No GPBProtocolBuffers.
+    No pbobjc. No GPBProtocolBuffers.
     Features: bitmap playback, dynamic image/text, loop control, seek, range playback,
-    loading de-duplication, memory & disk cache.
+    loading de-duplication, memory & disk cache, animated GIF/WebP dynamic image overlay.
   DESC
 
   s.homepage         = 'https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer'
@@ -28,6 +28,8 @@ Pod::Spec.new do |s|
   s.frameworks = 'UIKit', 'QuartzCore', 'CoreGraphics', 'Foundation',
                  'AVFoundation', 'ImageIO', 'CryptoKit'
   s.libraries  = 'compression'
+  s.dependency 'Kingfisher', '~> 8.0'
+  s.dependency 'KingfisherWebP', '~> 1.7'
 
   # SwiftProtobuf 依赖已移除：本库使用自研轻量 Protobuf 解析器
   # 如需 ZIPFoundation 可取消注释：
