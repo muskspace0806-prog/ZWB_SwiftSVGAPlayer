@@ -68,7 +68,7 @@ private struct ProtoReader {
             throw SVGAError.protobufDecodeFailed("Not enough bytes for float")
         }
         var value: Float = 0
-        withUnsafeMutableBytes(of: &value) { ptr in
+        _ = withUnsafeMutableBytes(of: &value) { ptr in
             data.copyBytes(to: ptr, from: data.index(data.startIndex, offsetBy: offset)..<data.index(data.startIndex, offsetBy: offset + 4))
         }
         offset += 4

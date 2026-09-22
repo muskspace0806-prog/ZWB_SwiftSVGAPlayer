@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### 修复
+- 清理 3 个编译警告，使 `pod trunk push` 不再需要 `--allow-warnings`：
+  - `ZWB_Svga.pb.swift` 中 `withUnsafeMutableBytes(of:_:)` 的返回值未被使用
+  - `ZWB_SVGABinaryDecoder.swift` 与 `ZWB_SVGAPathParser.swift` 中 `var t` 从未被修改，改为 `let t`
+- 顺带移除两处无实际作用的 `_ = t` 语句
+
 ## [1.0.15] - 2026-09-22
 
 ### 新增

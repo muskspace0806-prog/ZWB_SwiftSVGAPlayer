@@ -317,7 +317,7 @@ final class SVGABinaryDecoder {
         if  sweep && dAngle < 0 { dAngle += 2 * .pi }
 
         // Step 5: 用 CGPath addArc 近似（通过变换处理椭圆）
-        var t = CGAffineTransform.identity
+        let t = CGAffineTransform.identity
             .translatedBy(x: cx, y: cy)
             .rotated(by: phi)
             .scaledBy(x: rx, y: ry)
@@ -328,7 +328,6 @@ final class SVGABinaryDecoder {
                     endAngle: startAngle + dAngle,
                     clockwise: !sweep,
                     transform: t)
-        _ = t // suppress warning
     }
 
 }

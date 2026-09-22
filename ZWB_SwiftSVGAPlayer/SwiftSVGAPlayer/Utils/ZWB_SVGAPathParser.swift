@@ -150,14 +150,13 @@ enum SVGAPathParser {
         if !sweep && dθ > 0 { dθ -= 2 * .pi }
         if  sweep && dθ < 0 { dθ += 2 * .pi }
 
-        var t = CGAffineTransform.identity
+        let t = CGAffineTransform.identity
             .translatedBy(x: cx, y: cy)
             .rotated(by: phi)
             .scaledBy(x: rx, y: ry)
         path.addArc(center: .zero, radius: 1,
                     startAngle: θ1, endAngle: θ1 + dθ,
                     clockwise: !sweep, transform: t)
-        _ = t
     }
 }
 
