@@ -1,5 +1,36 @@
 # Changelog
 
+## [1.0.15] - 2026-09-22
+
+### 新增
+- `SwiftSVGAPlayerView` 新增无限滚动跑马灯文本能力，可把 SVGA 中任意命名槽位（如 `id`）替换成无缝循环的滚动文本
+- 新增 `setScrollingText(_:forKey:config:canvasRect:)`：纯字符串接口，字号 / 颜色走 `config`
+- 新增 `setScrollingAttributedText(_:forKey:config:canvasRect:)`：富文本接口，支持同一段文案内混排多种字体、字号、颜色
+- 新增 `removeScrollingText(forKey:)` / `removeAllScrollingText()`，移除跑马灯并还原槽位原始元素
+- 新增 `canvasRect(forKey:)`，查询任意 key 在画布坐标系中的矩形（即跑马灯被摆放的位置）
+- 新增 `SVGAScrollTextConfig`：可配置是否滚动、滚动方向（从左到右 / 从右到左）、阿语 RTL 翻转（`isRTLLayout`）、前后间距（`gap`）、速度（`speed`）、字体、文字颜色、内边距、不滚动时对齐方式、是否隐藏槽位占位图
+- 新增 `SVGAScrollTextUnit`：长度类参数的计量单位。**默认 `.point`（屏幕 pt）**，换算由播放器内部处理；需要与设计稿画布 1:1 对应时切到 `.canvas`
+- 新增 `SVGAScrollTextDirection`：`leftToRight` / `rightToLeft`，并提供 `reversed` 取反
+
+### 说明
+- 跑马灯完全自研（仅依赖 UIKit / QuartzCore / Foundation），不引入 `MarqueeLabel` 等三方滚动文本库
+- 无缝循环实现：周期 = 文本宽度 + `gap`，按可用宽度平铺若干份，动画只位移一个周期并无限重复，因此首尾自然衔接、无跳变
+- 槽位是**固定窗口**：文本超出部分被裁剪而不是缩放，尺寸与位置仍由 SVGA 素材中该 key 的槽位决定
+- 占位图抑制复用播放器已有的 `hidden` 动态项机制，不改动位图层渲染逻辑
+- 暂停 / 恢复与播放器 `pause()` / `resume()` 同步，独立冻结跑马灯的 CoreAnimation 时间线
+- 性能：`layoutSubviews` 期间只在缩放累计变化超过 5% 时重建文本，避免尺寸动画过程中每帧重新测量文本并重置滚动相位（表现为「看起来卡住不动」）
+
+### 变更（需注意）
+- `SVGAScrollTextConfig.unit` 默认为 `.point`。若此前已按画布单位调过 `font` / `gap` / `speed`，需要显式设置 `config.unit = .canvas`，否则显示尺寸会与预期不同
+
+### 文档
+- README / README_EN 同步更新 CocoaPods 与 SPM 集成示例到 `1.0.15`
+- README / README_EN 新增跑马灯文本章节与特性条目
+
+### 发布
+- CocoaPods 版本升级到 `1.0.15`
+- SPM 通过 Git tag `1.0.15` 分发
+
 ## [1.0.14] - 2026-08-28
 
 ### 新增

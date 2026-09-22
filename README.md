@@ -36,6 +36,7 @@
 - ✅ Reverse playback（反向播放）
 - ✅ Playback range（播放区间）
 - ✅ Dynamic image / imageURL / text / hidden / drawing block
+- ✅ Infinite scrolling marquee text（把任意命名槽位替换成无缝滚动文本，支持方向 / 阿语 RTL / 间距 / 速度 / 字体 / 颜色，自研无三方依赖）
 - ✅ Dynamic GIF / animated WebP URL replacement（基于 Kingfisher + KingfisherWebP，SDWebImage 运行时兜底）
 - ✅ Loading de-duplication（actor-based 加载防重）
 - ✅ Memory cache（NSCache）
@@ -55,7 +56,7 @@
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer.git", from: "1.0.14")
+    .package(url: "https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer.git", from: "1.0.15")
 ]
 ```
 
@@ -64,7 +65,7 @@ dependencies: [
 ### CocoaPods
 
 ```ruby
-pod 'ZWB_SwiftSVGAPlayer', '~> 1.0.14'
+pod 'ZWB_SwiftSVGAPlayer', '~> 1.0.15'
 ```
 
 ---
@@ -259,6 +260,80 @@ player.setDrawing({ context, rect, frameIndex in
 }, forKey: "custom")
 ```
 
+### 跑马灯（无限滚动文本，1.0.15）
+
+把一个命名槽位（例如设计稿里叫 `id` 的那个 63×21 占位图）替换成无缝循环的滚动文本。完全自研实现，不引入 `MarqueeLabel` 等三方滚动文本库。
+
+**槽位规则**：位置与尺寸仍然由 SVGA 素材中该 key 的槽位决定，**是个固定窗口** —— 文本超出部分被裁剪，不会被缩放。所以滚动文案尽量放在足够宽的槽位里。
+
+**单位规则**：`font` / `gap` / `speed` / `insets` 默认按**屏幕 pt** 写，缩放换算由播放器内部处理，不需要自己算画布比例。
+
+```swift
+// 1. 基础用法：把 key 为 "id" 的槽位换成滚动文本
+var config = SVGAScrollTextConfig()
+config.font      = .systemFont(ofSize: 20, weight: .semibold)  // 屏幕上就是 20pt
+config.textColor = .white
+config.gap       = 20      // 前后两段文本的间距（pt）
+config.speed     = 50      // 每秒滚动 50pt
+config.direction = .rightToLeft
+
+player.setScrollingText("恭喜 阿卜杜拉 获得守护徽章", forKey: "id", config: config)
+
+// 2. 方向与阿语 RTL 翻转
+config.direction = .leftToRight   // 从左到右
+config.isRTLLayout = true         // 阿语：翻转滚动方向，并让文本按 RTL 排版
+
+// 3. 不滚动，只显示一段静态文本（超出槽位部分裁剪）
+config.isScrolling = false
+config.alignment = .center        // 不滚动时的对齐方式，nil 表示按方向自动决定
+
+// 4. 富文本：同一段文案里混排多种字体 / 字号 / 颜色
+let attr = NSMutableAttributedString(string: "恭喜 ", attributes: [
+    .font: UIFont.systemFont(ofSize: 20)
+])
+attr.append(NSAttributedString(string: "阿卜杜拉", attributes: [
+    .font: UIFont.systemFont(ofSize: 20, weight: .bold),
+    .foregroundColor: UIColor.systemYellow
+]))
+player.setScrollingAttributedText(attr, forKey: "id", config: config)
+// 属性串里没设的字体 / 颜色会自动回落到 config，不会变成 CATextLayer 默认的 Helvetica 36
+
+// 5. 手动指定槽位矩形（不传则自动从 SVGA 布局推算）
+player.setScrollingText("...", forKey: "id", config: config,
+                        canvasRect: CGRect(x: 87, y: 207, width: 126, height: 41))
+
+// 6. 先设置、后播放：资源未加载完时会记住请求，加载完成后自动生效
+player.setScrollingText("...", forKey: "id", config: config)   // 返回 false 表示暂未匹配到布局
+player.play(.named("gift"), loop: .forever)
+
+// 7. 移除，还原槽位原始元素
+player.removeScrollingText(forKey: "id")
+player.removeAllScrollingText()
+
+// 8. 查询槽位在画布坐标系中的矩形
+if let rect = player.canvasRect(forKey: "id") { print(rect) }
+```
+
+`SVGAScrollTextConfig` 全部可配置项：
+
+| 属性 | 默认值 | 说明 |
+|------|--------|------|
+| `unit` | `.point` | 长度类参数单位。`.point` 屏幕 pt；`.canvas` 画布单位（需与设计稿 1:1 对应时用） |
+| `isScrolling` | `true` | 是否滚动。`false` 时只显示一段静态文本 |
+| `direction` | `.rightToLeft` | 滚动方向，另有 `.leftToRight` |
+| `isRTLLayout` | `false` | 阿语等 RTL：翻转滚动方向并按从右到左排版 |
+| `gap` | `32` | 相邻两段文本之间的间距 |
+| `speed` | `60` | 滚动速度（单位 / 秒），必须大于 0 |
+| `font` | `.systemFont(ofSize: 24, weight: .semibold)` | 字号，仅 `String` 接口生效 |
+| `textColor` | `.white` | 文字颜色，仅 `String` 接口生效 |
+| `insets` | `.zero` | 在槽位矩形内再收缩一圈可用区域 |
+| `alignment` | `nil` | 不滚动时的对齐方式，`nil` 表示按方向自动决定 |
+| `hidesPlaceholder` | `true` | 是否隐藏槽位原本的占位图，避免与跑马灯叠在一起 |
+
+> **单位提示**：`unit` 默认 `.point`，这是相对早期画布单位写法的行为变更。如果已有代码按画布单位调过 `font` / `gap` / `speed`，请显式设置 `config.unit = .canvas`。
+>
+> **性能提示**：滚动时不会重启动画；尺寸变化动画过程中只在缩放累计变化超过 5% 时才重建文本，避免每帧重新测量文本导致滚动相位被重置（看起来像卡住不动）。`.scaleToFill` 下横纵缩放比不同会拉伸文字，跑马灯建议用 `.scaleAspectFit` / `.scaleAspectFill`。
+
 ### 回调
 
 ```swift
@@ -346,6 +421,7 @@ let player = SwiftSVGAPlayerView(parser: parser)
 | Playback range | ✅ |
 | Dynamic image / text / hidden | ✅ |
 | Dynamic drawing block | ✅ |
+| Scrolling marquee text（跑马灯，自研无三方依赖） | ✅ |
 | Loading de-duplication | ✅ |
 | Memory cache | ✅ |
 | Disk data cache | ✅ |

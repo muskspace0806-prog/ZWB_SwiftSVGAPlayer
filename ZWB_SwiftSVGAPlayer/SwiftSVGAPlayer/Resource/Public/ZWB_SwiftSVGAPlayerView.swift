@@ -73,6 +73,9 @@ public final class SwiftSVGAPlayerView: UIView {
     private var currentVideo: SVGAVideo?
     private var currentSource: SVGASource?
     private var animatedImageOverlayItems: [String: SVGAAnimatedImageOverlayItem] = [:]
+    /// 跑马灯覆盖层：key → 视图 + 文本 + 配置
+    private var scrollTextOverlayItems: [String: SVGAScrollTextOverlayItem] = [:]
+    private var isScrollTextPaused = false
     private var loadTask: Task<Void, Never>?
     private var loadTaskID: UInt = 0
     private var pendingLoopMode: SVGALoopMode = .forever
@@ -165,7 +168,7 @@ public final class SwiftSVGAPlayerView: UIView {
         super.layoutSubviews()
         updateRenderLayerFrame()
         animatedOverlayContainer.frame = bounds
-        updateAnimatedImageOverlayFrames()
+        updateOverlayFrames()
     }
 
     public override func didMoveToWindow() {
@@ -247,7 +250,9 @@ public final class SwiftSVGAPlayerView: UIView {
             self.totalFrames  = video.playbackFrames
             self.renderLayer.configure(video: video)
             self.updateRenderLayerFrame()
-            self.updateAnimatedImageOverlayFrames()
+            // 重新加载后 spriteLayer 会重建，占位图抑制需要重新施加一次
+            self.applyScrollTextPlaceholderSuppression()
+            self.updateOverlayFrames()
             self.audioController.configure(audios: video.audios, fps: video.clampedFPS)
             self.setState(.ready)
             let elapsed = Int((CFAbsoluteTimeGetCurrent() - loadStartTime) * 1000)
@@ -316,6 +321,7 @@ public final class SwiftSVGAPlayerView: UIView {
         needsPlaybackOnWindowAttach = false
         playbackController.pause()
         audioController.pause()
+        setScrollTextPaused(true)
         updateDebugPlaying(false)
         debugLog("pause")
     }
@@ -344,6 +350,7 @@ public final class SwiftSVGAPlayerView: UIView {
         }
         playbackController.resume()
         audioController.resume()
+        setScrollTextPaused(false)
         if currentVideo != nil {
             updateDebugPlaying(true)
         }
@@ -359,6 +366,7 @@ public final class SwiftSVGAPlayerView: UIView {
         playbackController.stop()
         audioController.stop()
         removeAnimatedImageOverlays()
+        removeAllScrollingText()
         applyStopScene(scene)
         updateDebugPlaying(false)
         debugLog("stop scene=\(scene)")
@@ -387,6 +395,7 @@ public final class SwiftSVGAPlayerView: UIView {
         playbackController.stop()
         audioController.stop()
         removeAnimatedImageOverlays()
+        removeAllScrollingText()
         renderLayer.clearLayers()
         currentVideo = nil; currentSource = nil
         currentFrame = 0;   totalFrames   = 0
@@ -524,6 +533,143 @@ public final class SwiftSVGAPlayerView: UIView {
         renderLayer.setDynamicItem(drawing.map { .drawing($0) }, forKey: key)
     }
 
+    // MARK: - Scrolling Text（跑马灯）
+
+    /// 把 SVGA 中指定 key 的元素替换成可无限滚动的文本（跑马灯）
+    ///
+    /// 典型用法：某个 SVGA 里有一个动态元素（imageKey 为 `id`），
+    /// 设计上是一条 63×21 的占位图，实际要展示可滚动的用户 ID / 公告文案。
+    ///
+    /// ```swift
+    /// var config = SVGAScrollTextConfig()
+    /// config.isScrolling = true
+    /// config.direction   = .rightToLeft
+    /// config.gap         = 20
+    /// config.font        = .systemFont(ofSize: 20, weight: .semibold)  // 屏幕上就是 20pt
+    /// player.setScrollingText("ID: 88888888", forKey: "id", config: config)
+    /// player.play(.named("1787282468132"), loop: .forever)
+    /// ```
+    ///
+    /// `font` / `gap` / `speed` / `insets` 的计量单位由 `config.unit` 决定，**默认 `.point`（屏幕点）** ——
+    /// 直接写期望的屏幕显示大小即可，缩放换算由播放器内部按当前 `contentMode` 处理。
+    /// 需要与设计稿画布 1:1 对应时改 `config.unit = .canvas`。
+    ///
+    /// 该方法可以先于 `play` 调用：资源还没加载完时会先把请求记下来，加载完成后自动生效。
+    ///
+    /// - Parameters:
+    ///   - text: 文本内容。传 `nil` 或空白串表示移除跑马灯并恢复原始元素
+    ///   - key: SVGA 中动态元素的 key（对应 sprite 的 imageKey）
+    ///   - config: 跑马灯配置（是否滚动 / 方向 / 阿语翻转 / 前后间距 / 速度 / 字体等）
+    ///   - canvasRect: 手动指定该元素在画布坐标系中的矩形；传 `nil` 时自动从 SVGA 布局推算
+    /// - Returns: 是否已经在当前已加载的资源里找到了目标 key 的布局。
+    ///   若 SVGA 尚未加载完成会返回 `false`，但请求依然会被记住并在加载完成后自动生效。
+    @discardableResult
+    public func setScrollingText(
+        _ text: String?,
+        forKey key: String,
+        config: SVGAScrollTextConfig = SVGAScrollTextConfig(),
+        canvasRect: CGRect? = nil
+    ) -> Bool {
+        guard let text = text,
+              !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            removeScrollingText(forKey: key)
+            return true
+        }
+
+        // 跑马灯是单行场景，把换行统一压成空格
+        let sanitized = text
+            .replacingOccurrences(of: "\r\n", with: " ")
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\r", with: " ")
+
+        let attributed = NSAttributedString(string: sanitized, attributes: [
+            .font: config.font,
+            .foregroundColor: config.textColor,
+            .paragraphStyle: makeScrollTextParagraphStyle(config: config)
+        ])
+        return setScrollingAttributedText(attributed, forKey: key, config: config, canvasRect: canvasRect)
+    }
+
+    /// 富文本版本，可逐段自定义字体 / 字号 / 颜色（支持同一段文案里混排多种样式）。
+    ///
+    /// 属性串里**显式设置过**的属性优先；没设置的部分自动回落到 `config`
+    /// （`config.font` / `config.textColor` / 按 `isRTLLayout` 生成的段落样式）。
+    /// 这样就不会踩到「只设了颜色、字体却变成 CATextLayer 默认 Helvetica 36」这个坑。
+    ///
+    /// 注意：刻意与 `setScrollingText(_:String?)` 分开命名，避免 `setScrollingText(nil, ...)`
+    /// 在两个重载之间产生歧义。
+    @discardableResult
+    public func setScrollingAttributedText(
+        _ text: NSAttributedString?,
+        forKey key: String,
+        config: SVGAScrollTextConfig = SVGAScrollTextConfig(),
+        canvasRect: CGRect? = nil
+    ) -> Bool {
+        guard let text = text, text.length > 0 else {
+            removeScrollingText(forKey: key)
+            return true
+        }
+
+        let normalized = fillMissingScrollTextAttributes(in: text, config: config)
+        let suppressed = config.hidesPlaceholder
+
+        if var existing = scrollTextOverlayItems[key], let view = existing.scrollView {
+            // 已有覆盖层：原地更新，避免重复创建视图
+            existing.text               = normalized
+            existing.config             = config
+            existing.canvasRectOverride = canvasRect
+            existing.suppressedPlaceholder = suppressed
+            scrollTextOverlayItems[key] = existing
+            view.update(text: normalized, config: config)
+        } else {
+            let view = SVGAScrollTextView()
+            view.isHidden = true
+            animatedOverlayContainer.addSubview(view)
+            // 放在最上层，避免被后加入的动图覆盖层挡住
+            animatedOverlayContainer.bringSubviewToFront(view)
+            scrollTextOverlayItems[key] = SVGAScrollTextOverlayItem(key: key,
+                                                                    text: normalized,
+                                                                    config: config,
+                                                                    canvasRectOverride: canvasRect,
+                                                                    suppressedPlaceholder: suppressed,
+                                                                    scrollView: view)
+            view.update(text: normalized, config: config)
+            view.setPaused(isScrollTextPaused)
+        }
+
+        // 抑制槽位原本的占位图：复用已有的 hidden 动态项机制，无需改位图层
+        applyScrollTextPlaceholderSuppression()
+
+        updateScrollTextOverlayFrames()
+        return canvasFrame(forKey: key) != nil
+    }
+
+    /// 移除某个 key 的跑马灯，恢复 SVGA 原始元素
+    public func removeScrollingText(forKey key: String) {
+        guard let item = scrollTextOverlayItems.removeValue(forKey: key) else { return }
+        item.scrollView?.removeFromSuperview()
+        if item.suppressedPlaceholder {
+            // 只还原「由跑马灯隐藏」的占位图，不干扰调用方自己设置的隐藏
+            renderLayer.setDynamicItem(nil, forKey: key)
+        }
+    }
+
+    /// 移除全部跑马灯
+    public func removeAllScrollingText() {
+        for key in Array(scrollTextOverlayItems.keys) {
+            removeScrollingText(forKey: key)
+        }
+    }
+
+    /// 查询某个 key 在画布坐标系中的矩形 —— 跑马灯就是被摆放在这个矩形里
+    ///
+    /// 画布坐标系 = SVGA 的 viewBox 尺寸（如 300×300）。
+    /// 需要换算到播放器视图坐标时可用 `convertCanvasFrameToViewFrame`，播放器内部已这么做。
+    public func canvasRect(forKey key: String) -> CGRect? {
+        if let override = scrollTextOverlayItems[key]?.canvasRectOverride { return override }
+        return canvasFrame(forKey: key)
+    }
+
     // MARK: - Private Helpers
 
     private func startPlayback(video: SVGAVideo, range: Range<Int>, loop: SVGALoopMode) {
@@ -554,7 +700,7 @@ public final class SwiftSVGAPlayerView: UIView {
             self.currentFrame = frame
             guard self.isRenderableByCurrentVisibilityPolicy else { return }
             self.renderLayer.step(to: frame)
-            self.updateAnimatedImageOverlayFrames()
+            self.updateOverlayFrames()
             self.audioController.update(frame: frame)
             self.onFrameChange?(frame, self.progress)
         }
@@ -633,7 +779,9 @@ public final class SwiftSVGAPlayerView: UIView {
         let imageView = makeAnimatedImageView(url: url, data: data)
         animatedOverlayContainer.addSubview(imageView)
         animatedImageOverlayItems[key] = SVGAAnimatedImageOverlayItem(key: key, options: options, imageView: imageView)
-        updateAnimatedImageOverlayFrames()
+        // 动图覆盖层是新加入的子视图，会把跑马灯压到下面，这里把跑马灯重新提到最上层
+        bringScrollTextViewsToFront()
+        updateOverlayFrames()
         imageView.startAnimating()
         animatedImageDebugLog("overlay added key=\(key) imageView=\(type(of: imageView)) image=\(String(describing: imageView.image)) frame=\(imageView.frame) hidden=\(imageView.isHidden) isAnimating=\(imageView.isAnimating)")
     }
@@ -762,6 +910,121 @@ public final class SwiftSVGAPlayerView: UIView {
             imageView.frame = convertedViewFrame(forKey: key) ?? .zero
             imageView.isHidden = imageView.frame.isEmpty
             applyAnimatedImageOptions(item.options ?? inferredAnimatedImageOptions(forKey: key, frame: imageView.frame), to: imageView)
+        }
+    }
+
+    // MARK: - Scrolling Text Overlay
+
+    /// 生成跑马灯用的单行段落样式
+    private func makeScrollTextParagraphStyle(config: SVGAScrollTextConfig) -> NSParagraphStyle {
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.lineBreakMode = .byClipping
+        if config.isRTLLayout {
+            paragraph.baseWritingDirection = .rightToLeft
+            paragraph.alignment = .right
+        }
+        return paragraph
+    }
+
+    /// 把属性串里缺失的字体 / 颜色 / 段落样式补成 `config` 的默认值
+    ///
+    /// 只补「原串没有该属性」的区间，不影响调用方显式设置的样式。
+    /// 这一步必须做：`CATextLayer` 对没有 `.font` 属性的区间会退回自身默认字体（Helvetica 36）。
+    private func fillMissingScrollTextAttributes(in text: NSAttributedString,
+                                                 config: SVGAScrollTextConfig) -> NSAttributedString {
+        let mutable = NSMutableAttributedString(attributedString: text)
+        let full = NSRange(location: 0, length: text.length)
+
+        // 先在原串上枚举收集区间，再统一写入副本，避免「边枚举边改」的未定义行为
+        var fontRanges: [NSRange] = []
+        var colorRanges: [NSRange] = []
+        var paragraphRanges: [NSRange] = []
+        text.enumerateAttributes(in: full, options: []) { attributes, range, _ in
+            if attributes[.font] == nil { fontRanges.append(range) }
+            if attributes[.foregroundColor] == nil { colorRanges.append(range) }
+            if attributes[.paragraphStyle] == nil { paragraphRanges.append(range) }
+        }
+
+        fontRanges.forEach { mutable.addAttribute(.font, value: config.font, range: $0) }
+        colorRanges.forEach { mutable.addAttribute(.foregroundColor, value: config.textColor, range: $0) }
+        if !paragraphRanges.isEmpty {
+            let paragraph = makeScrollTextParagraphStyle(config: config)
+            paragraphRanges.forEach { mutable.addAttribute(.paragraphStyle, value: paragraph, range: $0) }
+        }
+        return mutable
+    }
+
+    /// 按各条目的 `hidesPlaceholder` 抑制对应槽位的占位图
+    ///
+    /// 复用已有的 `.hidden` 动态项机制（`SVGASpriteLayer.step` 里 `isHidden = true`），
+    /// 不需要改动位图层。
+    private func applyScrollTextPlaceholderSuppression() {
+        for (key, item) in scrollTextOverlayItems where item.suppressedPlaceholder {
+            renderLayer.setDynamicItem(.hidden, forKey: key)
+        }
+    }
+
+    /// 与播放器 pause / resume 联动，让跑马灯随画面一起停 / 走
+    private func setScrollTextPaused(_ paused: Bool) {
+        guard isScrollTextPaused != paused else { return }
+        isScrollTextPaused = paused
+        for item in scrollTextOverlayItems.values {
+            item.scrollView?.setPaused(paused)
+        }
+    }
+
+    /// 同步所有跑马灯覆盖层的位置与缩放比
+    private func updateScrollTextOverlayFrames() {
+        guard !scrollTextOverlayItems.isEmpty else { return }
+        let scale = currentRenderScale()
+
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        for (key, item) in scrollTextOverlayItems {
+            guard let view = item.scrollView else { continue }
+            view.updateRenderScale(scale)
+
+            let frame: CGRect
+            if let override = item.canvasRectOverride, let video = currentVideo {
+                frame = convertCanvasFrameToViewFrame(override, canvasSize: video.size)
+            } else {
+                frame = convertedViewFrame(forKey: key) ?? .zero
+            }
+
+            if view.frame != frame { view.frame = frame }
+            view.isHidden = frame.isEmpty
+        }
+        CATransaction.commit()
+    }
+
+    /// 当前画布 → 视图的缩放比（口径与 `updateRenderLayerFrame` 保持一致）
+    private func currentRenderScale() -> CGFloat {
+        guard let video = currentVideo else { return 1 }
+        let canvasSize = video.size
+        let viewSize   = bounds.size
+        guard canvasSize.width > 0, canvasSize.height > 0,
+              viewSize.width > 0,   viewSize.height > 0 else { return 1 }
+        switch contentMode {
+        case .scaleToFill, .scaleAspectFill:
+            return Swift.max(viewSize.width  / canvasSize.width,
+                             viewSize.height / canvasSize.height)
+        default:
+            return Swift.min(viewSize.width  / canvasSize.width,
+                             viewSize.height / canvasSize.height)
+        }
+    }
+
+    /// 覆盖层统一帧同步（动图 + 跑马灯）
+    private func updateOverlayFrames() {
+        updateAnimatedImageOverlayFrames()
+        updateScrollTextOverlayFrames()
+    }
+
+    /// 跑马灯覆盖层始终保持最上层（动图覆盖层可能后加入而压在上面）
+    private func bringScrollTextViewsToFront() {
+        for item in scrollTextOverlayItems.values {
+            guard let view = item.scrollView else { continue }
+            animatedOverlayContainer.bringSubviewToFront(view)
         }
     }
 
@@ -945,6 +1208,17 @@ private struct SVGAAnimatedImageOverlayItem {
     let key: String
     let options: SVGADynamicImageOptions?
     weak var imageView: UIImageView?
+}
+
+private struct SVGAScrollTextOverlayItem {
+    let key: String
+    var text: NSAttributedString
+    var config: SVGAScrollTextConfig
+    /// 手动指定的画布矩形；`nil` 表示自动从 SVGA 布局推算
+    var canvasRectOverride: CGRect?
+    /// 是否由跑马灯主动隐藏了该 key 的占位图 —— 移除时需要还原，避免影响调用方后续的 setImage
+    var suppressedPlaceholder: Bool
+    weak var scrollView: SVGAScrollTextView?
 }
 
 private extension Data {

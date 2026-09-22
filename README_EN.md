@@ -36,6 +36,7 @@
 - Play, pause, resume, stop, and seek
 - Reverse playback and playback ranges
 - Dynamic image, image URL, text, hidden state, and drawing block
+- Infinite scrolling marquee text that replaces any named SVGA slot, with direction, RTL flip, gap, speed, font, and color control (first-party, no third-party scrolling-text dependency)
 - Dynamic GIF and animated WebP URL replacement, powered by Kingfisher + KingfisherWebP with SDWebImage runtime fallback
 - Loading de-duplication with actor-based coordination
 - Memory cache and disk data cache
@@ -52,7 +53,7 @@ Add the package in `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer.git", from: "1.0.14")
+    .package(url: "https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer.git", from: "1.0.15")
 ]
 ```
 
@@ -61,7 +62,7 @@ Or add the repository URL in Xcode with File -> Add Package Dependencies.
 ### CocoaPods
 
 ```ruby
-pod 'ZWB_SwiftSVGAPlayer', '~> 1.0.14'
+pod 'ZWB_SwiftSVGAPlayer', '~> 1.0.15'
 ```
 
 ---
@@ -170,6 +171,82 @@ Hide a sprite:
 ```swift
 player.setHidden(true, forKey: "background")
 ```
+
+---
+
+## Scrolling Marquee Text (1.0.15)
+
+Replace any named SVGA slot (for example a 63x21 placeholder sprite whose key is `id`) with seamlessly looping scrolling text. Implemented first-party; it does not pull in `MarqueeLabel` or any other third-party scrolling-text library.
+
+**Slot rules**: position and size still come from the SVGA asset's slot for that key. The slot is a **fixed window** — overflowing text is clipped, not scaled. Use a slot that is wide enough for the text you plan to show.
+
+**Unit rules**: `font` / `gap` / `speed` / `insets` are written in **screen points by default**; the player handles scale conversion internally, so you never have to compute the canvas ratio yourself.
+
+```swift
+// 1. Basic usage: replace the slot keyed "id" with scrolling text
+var config = SVGAScrollTextConfig()
+config.font      = .systemFont(ofSize: 20, weight: .semibold)  // 20pt on screen
+config.textColor = .white
+config.gap       = 20      // spacing between consecutive text copies (pt)
+config.speed     = 50      // scroll 50pt per second
+config.direction = .rightToLeft
+
+player.setScrollingText("Congratulations Abdullah", forKey: "id", config: config)
+
+// 2. Direction and Arabic RTL flip
+config.direction = .leftToRight   // left to right
+config.isRTLLayout = true         // Arabic: flip scroll direction and lay out right-to-left
+
+// 3. Static (non-scrolling) text, clipped to the slot
+config.isScrolling = false
+config.alignment = .center        // nil means derive from direction
+
+// 4. Rich text: mix multiple fonts / sizes / colors in one string
+let attr = NSMutableAttributedString(string: "Congratulations ", attributes: [
+    .font: UIFont.systemFont(ofSize: 20)
+])
+attr.append(NSAttributedString(string: "Abdullah", attributes: [
+    .font: UIFont.systemFont(ofSize: 20, weight: .bold),
+    .foregroundColor: UIColor.systemYellow
+]))
+player.setScrollingAttributedText(attr, forKey: "id", config: config)
+// Attributes you did not set fall back to `config` instead of CATextLayer's default Helvetica 36
+
+// 5. Override the slot rect manually (omit to derive it from the SVGA layout)
+player.setScrollingText("...", forKey: "id", config: config,
+                        canvasRect: CGRect(x: 87, y: 207, width: 126, height: 41))
+
+// 6. Configure before loading: the request is remembered and applied once the asset loads
+player.setScrollingText("...", forKey: "id", config: config)   // false = layout not matched yet
+player.play(.named("gift"), loop: .forever)
+
+// 7. Remove and restore the original slot content
+player.removeScrollingText(forKey: "id")
+player.removeAllScrollingText()
+
+// 8. Query the slot rect in canvas coordinates
+if let rect = player.canvasRect(forKey: "id") { print(rect) }
+```
+
+`SVGAScrollTextConfig` options:
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `unit` | `.point` | Unit for length values. `.point` = screen points; `.canvas` = canvas units, for 1:1 design-canvas mapping |
+| `isScrolling` | `true` | Set `false` to render a single static line |
+| `direction` | `.rightToLeft` | Scroll direction; also `.leftToRight` |
+| `isRTLLayout` | `false` | RTL languages: flips scroll direction and lays text out right-to-left |
+| `gap` | `32` | Spacing between consecutive text copies |
+| `speed` | `60` | Scroll speed (units per second), must be greater than 0 |
+| `font` | `.systemFont(ofSize: 24, weight: .semibold)` | Font, `String` API only |
+| `textColor` | `.white` | Text color, `String` API only |
+| `insets` | `.zero` | Shrinks the usable area inside the slot rect |
+| `alignment` | `nil` | Alignment when not scrolling; `nil` derives it from direction |
+| `hidesPlaceholder` | `true` | Hides the slot's original placeholder bitmap so it does not overlap the marquee |
+
+> **Unit note**: `unit` defaults to `.point`, which is a behavior change from the earlier canvas-unit approach. If existing code tuned `font` / `gap` / `speed` against canvas units, set `config.unit = .canvas` explicitly.
+>
+> **Performance note**: scrolling never restarts the animation, and during size animations the text is rebuilt only after the cumulative scale change exceeds 5% — this avoids re-measuring text every frame and resetting the scroll phase (which looks like the marquee is frozen). Under `.scaleToFill` the horizontal and vertical scale factors differ and text will be stretched; prefer `.scaleAspectFit` / `.scaleAspectFill` for marquee slots.
 
 ---
 

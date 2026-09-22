@@ -1,13 +1,14 @@
 Pod::Spec.new do |s|
   s.name             = 'ZWB_SwiftSVGAPlayer'
-  s.version          = '1.0.14'
+  s.version          = '1.0.15'
   s.summary          = 'A Swift-based SVGA animation player for iOS 13+'
   s.description      = <<-DESC
     SwiftSVGAPlayer is a Swift-based implementation of an SVGA animation player.
     It supports iOS 13+, CocoaPods distribution, and provides a modern Swift API.
     No pbobjc. No GPBProtocolBuffers.
     Features: bitmap playback, dynamic image/text, loop control, seek, range playback,
-    loading de-duplication, memory & disk cache, animated GIF/WebP dynamic image overlay.
+    loading de-duplication, memory & disk cache, animated GIF/WebP dynamic image overlay,
+    infinite scrolling marquee text occupying any named SVGA slot.
   DESC
 
   s.homepage         = 'https://github.com/muskspace0806-prog/ZWB_SwiftSVGAPlayer'
